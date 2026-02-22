@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { usePackages, useCompatibilityCheck } from '@/api/queries';
+import { usePackages, useCompatibilityCheck, getVersionCompatibilityMatrix } from '@/api/queries';
 import { useState } from 'react';
 import { intersectRanges } from '@/utils/semver';
-import { Card, Select, Space, Tag, Table, Alert, Empty } from 'antd';
+import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 
 type CompareSearch = {
   packages?: string;
@@ -132,6 +133,10 @@ function CompatibilityResults({
   allPackages: any[];
 }) {
   const { data: check } = useCompatibilityCheck(packageIds);
+  const [selectedCell, setSelectedCell] = useState<{ v1: string; v2: string } | null>(null);
+
+  // Get version compatibility matrix
+  const matrixData = getVersionCompatibilityMatrix(packageIds, allPackages);
 
   // Parse package IDs to get version info
   const packageVersions = packageIds.map(id => {
@@ -279,6 +284,282 @@ function CompatibilityResults({
           </div>
         )}
       </Card>
+
+      {/* Version Compatibility Matrix */}
+      {matrixData && packageIds.length === 2 && (
+        <VersionCompatibilityMatrixCard 
+          matrixData={matrixData}
+          selectedCell={selectedCell}
+          onSelectCell={setSelectedCell}
+        />
+      )}
     </Space>
+  );
+}
+
+interface VersionCompatibilityMatrixCardProps {
+  matrixData: any;
+  selectedCell: { v1: string; v2: string } | null;
+  onSelectCell: (cell: { v1: string; v2: string } | null) => void;
+}
+
+function VersionCompatibilityMatrixCard({ 
+  matrixData, 
+  selectedCell,
+  onSelectCell
+}: VersionCompatibilityMatrixCardProps) {
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Find recommended version pair (latest compatible)
+  let recommendedPair: { v1: string; v2: string } | null = null;
+  for (const v1 of matrixData.pkg1Versions) {
+    for (const v2 of matrixData.pkg2Versions) {
+      const compat = matrixData.matrix[v1.version][v2.version];
+      if (compat.compatible && !recommendedPair) {
+        recommendedPair = { v1: v1.version, v2: v2.version };
+        break;
+      }
+    }
+    if (recommendedPair) break;
+  }
+
+  // Build matrix table columns
+  const columns = [
+    {
+      title: `${matrixData.pkg1Name}`,
+      dataIndex: 'version',
+      key: 'version',
+      width: 120,
+      fixed: 'left' as const,
+      render: (version: string) => <code>{version}</code>,
+    },
+    ...matrixData.pkg2Versions.map((v: any) => ({
+      title: <code style={{ fontSize: '12px' }}>{v.version}</code>,
+      dataIndex: `v_${v.version}`,
+      key: `v_${v.version}`,
+      width: 80,
+      render: (_: any, record: any) => {
+        const compat = matrixData.matrix[record.version][v.version];
+        const isRecommended = recommendedPair && 
+          recommendedPair.v1 === record.version && 
+          recommendedPair.v2 === v.version;
+        
+        return (
+          <Tooltip 
+            title={compat.reason || (compat.compatible ? 'Compatible' : 'Incompatible')}
+          >
+            <div
+              onClick={() => {
+                onSelectCell({ v1: record.version, v2: v.version });
+                setDetailModalOpen(true);
+              }}
+              style={{
+                backgroundColor: compat.compatible ? '#f6ffed' : '#fef2f0',
+                border: `2px solid ${compat.compatible ? '#91d5ff' : '#ffccc7'}`,
+                borderRadius: '4px',
+                padding: '4px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              {isRecommended && (
+                <Badge 
+                  count="★" 
+                  style={{ 
+                    backgroundColor: '#faad14',
+                    color: '#fff',
+                    fontSize: '10px',
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                  }} 
+                />
+              )}
+              {compat.compatible ? (
+                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />
+              ) : compat.warnings.length > 0 ? (
+                <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: '14px' }} />
+              ) : (
+                <CloseCircleOutlined style={{ color: '#f5222d', fontSize: '14px' }} />
+              )}
+            </div>
+          </Tooltip>
+        );
+      },
+    })),
+  ];
+
+  // Build matrix data
+  const matrixDataSource = matrixData.pkg1Versions.map((v1: any) => {
+    const row: any = { version: v1.version };
+    for (const v2 of matrixData.pkg2Versions) {
+      row[`v_${v2.version}`] = null; // Actual display is in render
+    }
+    return row;
+  });
+
+  // Build legend
+  const legendItems = [
+    {
+      key: 'compatible',
+      label: '✓ Compatible versions',
+      children: <p>Both packages can be used together with these versions.</p>,
+    },
+    {
+      key: 'warning',
+      label: '⚠ Has warnings',
+      children: <p>Packages can work together but there may be issues (e.g., mixed ESM/CJS).</p>,
+    },
+    {
+      key: 'incompatible',
+      label: '✗ Incompatible versions',
+      children: <p>These versions cannot be used together due to conflicting requirements.</p>,
+    },
+  ];
+
+  return (
+    <>
+      <Card title="Version Compatibility Matrix">
+        {recommendedPair && (
+          <Alert
+            message="★ Recommended Compatible Versions"
+            description={`${matrixData.pkg1Name}@${recommendedPair.v1} + ${matrixData.pkg2Name}@${recommendedPair.v2}`}
+            type="success"
+            showIcon
+            style={{ marginBottom: '1.5rem' }}
+          />
+        )}
+
+        <p style={{ marginBottom: '1rem', fontSize: '12px', color: '#666' }}>
+          Click any cell to see detailed compatibility information
+        </p>
+
+        <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+          <Table
+            columns={columns}
+            dataSource={matrixDataSource}
+            pagination={false}
+            size="small"
+            bordered
+            rowKey="version"
+            scroll={{ x: true }}
+          />
+        </div>
+
+        <Collapse items={legendItems} />
+      </Card>
+
+      {selectedCell && matrixData && (
+        <DetailModal
+          open={detailModalOpen}
+          onClose={() => setDetailModalOpen(false)}
+          pkg1Name={matrixData.pkg1Name}
+          pkg1Version={selectedCell.v1}
+          pkg2Name={matrixData.pkg2Name}
+          pkg2Version={selectedCell.v2}
+          compat={matrixData.matrix[selectedCell.v1][selectedCell.v2]}
+          pkg1Data={matrixData.pkg1Versions.find((v: any) => v.version === selectedCell.v1)}
+          pkg2Data={matrixData.pkg2Versions.find((v: any) => v.version === selectedCell.v2)}
+        />
+      )}
+    </>
+  );
+}
+
+interface DetailModalProps {
+  open: boolean;
+  onClose: () => void;
+  pkg1Name: string;
+  pkg1Version: string;
+  pkg2Name: string;
+  pkg2Version: string;
+  compat: any;
+  pkg1Data: any;
+  pkg2Data: any;
+}
+
+function DetailModal({
+  open,
+  onClose,
+  pkg1Name,
+  pkg1Version,
+  pkg2Name,
+  pkg2Version,
+  compat,
+  pkg1Data,
+  pkg2Data,
+}: DetailModalProps) {
+  return (
+    <Modal
+      title={`${pkg1Name}@${pkg1Version} + ${pkg2Name}@${pkg2Version}`}
+      open={open}
+      onCancel={onClose}
+      width={700}
+      footer={null}
+    >
+      <Space orientation="vertical" style={{ width: '100%' }} size="large">
+        {/* Compatibility Status */}
+        <Alert
+          message={compat.compatible ? '✓ Compatible' : '✗ Incompatible'}
+          description={compat.reason || (compat.compatible ? 'These versions can be used together' : 'These versions have conflicts')}
+          type={compat.compatible ? 'success' : 'error'}
+          showIcon
+        />
+
+        {/* geostyler-style Requirements */}
+        {pkg1Data?.geostylerStyleRange || pkg2Data?.geostylerStyleRange ? (
+          <div>
+            <h4>geostyler-style Requirements</h4>
+            <Table
+              columns={[
+                { title: 'Package', dataIndex: 'name', key: 'name', render: (name: string) => <code>{name}</code> },
+                { title: 'Required Range', dataIndex: 'range', key: 'range', render: (range: string) => <code>{range}</code> },
+              ]}
+              dataSource={[
+                { key: 'pkg1', name: `${pkg1Name}@${pkg1Version}`, range: pkg1Data?.geostylerStyleRange || '—' },
+                { key: 'pkg2', name: `${pkg2Name}@${pkg2Version}`, range: pkg2Data?.geostylerStyleRange || '—' },
+              ]}
+              pagination={false}
+              size="small"
+            />
+            {compat.sharedRange && (
+              <Alert 
+                message={`✓ Overlapping Range: ${compat.sharedRange}`}
+                type="success"
+                style={{ marginTop: '0.5rem' }}
+              />
+            )}
+          </div>
+        ) : null}
+
+        {/* Module System */}
+        <div>
+          <h4>Module System</h4>
+          <Space>
+            <Badge 
+              color={pkg1Data?.esmSupport ? '#52c41a' : '#096dd9'} 
+              text={`${pkg1Name}@${pkg1Version}: ${pkg1Data?.esmSupport ? 'ESM' : 'CJS'}`}
+            />
+            <Badge 
+              color={pkg2Data?.esmSupport ? '#52c41a' : '#096dd9'} 
+              text={`${pkg2Name}@${pkg2Version}: ${pkg2Data?.esmSupport ? 'ESM' : 'CJS'}`}
+            />
+          </Space>
+        </div>
+
+        {/* Warnings */}
+        {compat.warnings.length > 0 && (
+          <div>
+            <h4>Warnings</h4>
+            <Space orientation="vertical">
+              {compat.warnings.map((warning: string, idx: number) => (
+                <Alert key={idx} message={warning} type="warning" showIcon />
+              ))}
+            </Space>
+          </div>
+        )}
+      </Space>
+    </Modal>
   );
 }

@@ -1,6 +1,6 @@
 import { createRootRoute, Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Layout, Menu } from 'antd';
-import { DatabaseOutlined, SwapOutlined, BgColorsOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, SwapOutlined, FileTextOutlined } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
 
@@ -16,14 +16,14 @@ export const Route = createRootRoute({
         label: <Link to="/">Dashboard</Link>,
       },
       {
-        key: '/formats',
-        icon: <BgColorsOutlined />,
-        label: <Link to="/formats">Formats</Link>,
-      },
-      {
         key: '/compare',
         icon: <SwapOutlined />,
         label: <Link to="/compare">Compare</Link>,
+      },
+      {
+        key: '/docs',
+        icon: <FileTextOutlined />,
+        label: <Link to="/docs">Docs</Link>,
       },
     ];
 

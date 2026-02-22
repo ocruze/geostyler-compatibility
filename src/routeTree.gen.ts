@@ -9,14 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as FormatsRouteImport } from './routes/formats'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PackageNameRouteImport } from './routes/package.$name'
 
-const FormatsRoute = FormatsRouteImport.update({
-  id: '/formats',
-  path: '/formats',
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompareRoute = CompareRouteImport.update({
@@ -38,44 +38,44 @@ const PackageNameRoute = PackageNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
-  '/formats': typeof FormatsRoute
+  '/docs': typeof DocsRoute
   '/package/$name': typeof PackageNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
-  '/formats': typeof FormatsRoute
+  '/docs': typeof DocsRoute
   '/package/$name': typeof PackageNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
-  '/formats': typeof FormatsRoute
+  '/docs': typeof DocsRoute
   '/package/$name': typeof PackageNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compare' | '/formats' | '/package/$name'
+  fullPaths: '/' | '/compare' | '/docs' | '/package/$name'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compare' | '/formats' | '/package/$name'
-  id: '__root__' | '/' | '/compare' | '/formats' | '/package/$name'
+  to: '/' | '/compare' | '/docs' | '/package/$name'
+  id: '__root__' | '/' | '/compare' | '/docs' | '/package/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompareRoute: typeof CompareRoute
-  FormatsRoute: typeof FormatsRoute
+  DocsRoute: typeof DocsRoute
   PackageNameRoute: typeof PackageNameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/formats': {
-      id: '/formats'
-      path: '/formats'
-      fullPath: '/formats'
-      preLoaderRoute: typeof FormatsRouteImport
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compare': {
@@ -105,7 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompareRoute: CompareRoute,
-  FormatsRoute: FormatsRoute,
+  DocsRoute: DocsRoute,
   PackageNameRoute: PackageNameRoute,
 }
 export const routeTree = rootRouteImport
