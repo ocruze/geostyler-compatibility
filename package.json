@@ -1,0 +1,39 @@
+{
+    "name": "geostyler-compatibility",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "fetch-metadata": "tsx scripts/fetch-metadata.ts",
+        "compute-compatibility": "tsx scripts/compute-compatibility.ts",
+        "generate-data": "npm run fetch-metadata && npm run compute-compatibility",
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    },
+    "dependencies": {
+        "@ant-design/icons": "^6.1.0",
+        "@tanstack/react-router": "^1.58.3",
+        "antd": "^6.3.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "semver": "^7.6.3"
+    },
+    "devDependencies": {
+        "@tanstack/router-plugin": "^1.58.4",
+        "@types/node": "^22.5.5",
+        "@types/react": "^18.3.5",
+        "@types/react-dom": "^18.3.0",
+        "@types/semver": "^7.5.8",
+        "@typescript-eslint/eslint-plugin": "^8.5.0",
+        "@typescript-eslint/parser": "^8.5.0",
+        "@vitejs/plugin-react": "^4.3.1",
+        "eslint": "^9.10.0",
+        "eslint-plugin-react-hooks": "^5.0.0",
+        "eslint-plugin-react-refresh": "^0.4.12",
+        "tsx": "^4.19.1",
+        "typescript": "^5.6.2",
+        "vite": "^5.4.5"
+    }
+}
