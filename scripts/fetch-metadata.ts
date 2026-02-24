@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { REPOS, REPO_TO_NPM, ESM_VERSION_THRESHOLD } from '../src/constants/repos.js';
 import type { Package, PackageVersion, PackageCategory } from '../src/types/compatibility.js';
 import * as semver from 'semver';
+import { ProxyAgent } from 'undici';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,15 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'packages.json');
 // Rate limiting
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+function getProxyAgent(targetUrl: string): ProxyAgent | undefined {
+  const proxyUrl = targetUrl.startsWith('https:')
+    ? (process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY)
+    : process.env.HTTP_PROXY;
+
+  if (!proxyUrl) return undefined;
+  return new ProxyAgent(proxyUrl);
+}
+
 /**
  * Fetch from npm registry
  */
@@ -29,7 +39,11 @@ async function fetchNpmPackage(packageName: string): Promise<any> {
   console.log(`Fetching npm: ${packageName}`);
   
   try {
-    const response = await fetch(url);
+    const proxyAgent = getProxyAgent(url);
+    const response = await fetch(
+      url,
+      proxyAgent ? ({ dispatcher: proxyAgent } as RequestInit) : undefined
+    );
     if (!response.ok) {
       throw new Error(`npm registry returned ${response.status}`);
     }
