@@ -95,7 +95,7 @@ The workflow uses the built-in `GITHUB_TOKEN` for API requests (5,000 req/hour l
 ```typescript
 interface Package {
   name: string;
-  category: 'pivot' | 'ui' | 'style-parser' | 'data-parser';
+   category: 'core' | 'ui' | 'style-parser' | 'data-parser';
   format?: string; // e.g., 'SLD', 'Mapbox GL v8'
   versions: PackageVersion[];
   latestVersion: string;
@@ -134,7 +134,7 @@ interface CompatibilityCheck {
 
 See [src/constants/repos.ts](src/constants/repos.ts) for the full list:
 
-- **Pivot**: geostyler-style, geostyler-data
+- **Core**: geostyler-style, geostyler-data
 - **UI**: geostyler, geostyler-legend
 - **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX, GeoCss, SymCore, Masterportal
 - **Data Parsers**: GeoJSON, WFS, Shapefile

@@ -16,7 +16,7 @@ function Docs() {
           <p>All GeoStyler packages fall into one of four categories:</p>
 
           <div style={{ marginTop: '1rem' }}>
-            <h4>🔗 Pivot Packages</h4>
+            <h4>🔗 Core Packages</h4>
             <p>
               Core data structures that all other packages depend on. These define the standard format for styles and data.
             </p>
@@ -33,7 +33,7 @@ function Docs() {
               size="small"
             />
             <Alert 
-              message="All style/data parsers depend on these pivot packages within specific version ranges"
+              message="All style/data parsers depend on these core packages within specific version ranges"
               type="info"
               style={{ marginTop: '1rem' }}
             />
@@ -244,7 +244,7 @@ function Docs() {
             <p>Quick summary cards showing:</p>
             <ul>
               <li><strong>Total Packages:</strong> Count of all packages being tracked</li>
-              <li><strong>Pivot Packages:</strong> Core packages (geostyler-style, geostyler-data)</li>
+              <li><strong>Core Packages:</strong> Core packages (geostyler-style, geostyler-data)</li>
               <li><strong>Style Parsers:</strong> Packages for style format conversion</li>
               <li><strong>Data Parsers:</strong> Packages for data format conversion</li>
             </ul>
@@ -256,7 +256,7 @@ function Docs() {
             <h4>Package Table & Filtering</h4>
             <p>Browse all packages with filters:</p>
             <ul>
-              <li><strong>Category Filter:</strong> Show only specific package types (pivot, style-parser, data-parser, ui)</li>
+              <li><strong>Category Filter:</strong> Show only specific package types (core, style-parser, data-parser, ui)</li>
               <li><strong>Module System Filter:</strong> Filter by ESM or CommonJS support</li>
               <li><strong>Search:</strong> Find packages by name or category</li>
             </ul>

@@ -39,7 +39,7 @@ function Dashboard() {
 
   // Group packages by category
   const grouped: Record<PackageCategory, Package[]> = {
-    pivot: packages.filter(p => p.category === 'pivot'),
+    core: packages.filter(p => p.category === 'core'),
     ui: packages.filter(p => p.category === 'ui'),
     'style-parser': packages.filter(p => p.category === 'style-parser'),
     'data-parser': packages.filter(p => p.category === 'data-parser'),
@@ -62,7 +62,7 @@ function Dashboard() {
               style={{ width: 200 }}
               options={[
                 { label: 'All Categories', value: 'all' },
-                { label: 'Pivot Style', value: 'pivot' },
+                { label: 'Core Packages', value: 'core' },
                 { label: 'UI Components', value: 'ui' },
                 { label: 'Style Parsers', value: 'style-parser' },
                 { label: 'Data Parsers', value: 'data-parser' },
@@ -161,7 +161,8 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
             type="link"
             size="small"
             icon={<GithubOutlined />}
-            onClick={() => window.open(record.repositoryUrl, '_blank')}
+            href={record.repositoryUrl}
+            target='_blank'
           >
             GitHub
           </Button>
@@ -169,7 +170,8 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
             type="link"
             size="small"
             icon={<LinkOutlined />}
-            onClick={() => window.open(`https://www.npmjs.com/package/${record.name}`, '_blank')}
+            href={`https://www.npmjs.com/package/${record.name}`}
+            target='_blank'
           >
             npm
           </Button>

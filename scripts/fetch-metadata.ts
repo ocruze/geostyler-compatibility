@@ -60,8 +60,8 @@ async function fetchNpmPackage(packageName: string): Promise<any> {
 function getPackageCategory(repoName: string): PackageCategory {
   const name = repoName.toLowerCase();
   
-  if (name.includes('geostyler-style')) return 'pivot';
-  if (name.includes('geostyler-data')) return 'pivot';
+  if (name.includes('geostyler-style')) return 'core';
+  if (name.includes('geostyler-data')) return 'core';
   if (name === 'geostyler/geostyler' || name.includes('legend')) return 'ui';
   if (name.includes('geojson') || name.includes('wfs') || name.includes('shapefile')) return 'data-parser';
   if (name.includes('parser')) return 'style-parser';

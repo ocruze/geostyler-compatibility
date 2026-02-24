@@ -1,7 +1,7 @@
 /**
  * Package category classification
  */
-export type PackageCategory = 'pivot' | 'ui' | 'style-parser' | 'data-parser';
+export type PackageCategory = 'core' | 'ui' | 'style-parser' | 'data-parser';
 
 /**
  * Format types supported by geostyler parsers

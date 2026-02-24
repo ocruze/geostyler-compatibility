@@ -2,7 +2,7 @@
  * List of geostyler repositories to track
  */
 export const REPOS = [
-  // pivot style
+  // core style
   'geostyler/geostyler-style',
   // geostyler ui components
   'geostyler/geostyler',
