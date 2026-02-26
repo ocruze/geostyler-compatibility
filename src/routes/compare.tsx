@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { usePackages, useCompatibilityCheck, getVersionCompatibilityMatrix } from '@/api/queries';
 import { useState } from 'react';
 import { intersectRanges } from '@/utils/semver';
-import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
 
 type CompareSearch = {
   packages?: string;
@@ -65,7 +65,7 @@ function Compare() {
           <label style={{ fontWeight: 500 }}>Add Package:</label>
           <Select
             placeholder="Select a package..."
-            onChange={(value) => {
+            onSelect={(value) => {
               if (value) {
                 handleAddPackage(value);
               }
@@ -82,6 +82,7 @@ function Compare() {
               };
             })}
           />
+          <Button icon={<CloseCircleOutlined />} onClick={()=>setSelectedPackages([])} />
         </Space>
 
         {/* Selected Packages */}
@@ -168,7 +169,7 @@ function CompatibilityResults({
       <Card title="Compatibility Analysis">
         {/* Overall Status */}
         <Alert
-          message={hasErrors ? '✗ Incompatible' : '✓ Compatible'}
+          title={hasErrors ? '✗ Incompatible' : '✓ Compatible'}
           description={
             hasErrors 
               ? 'These packages have compatibility conflicts'
@@ -206,7 +207,7 @@ function CompatibilityResults({
           />
           
           <Alert
-            message={`Shared Range: ${sharedRange || 'No overlapping versions'}`}
+            title={`Shared Range: ${sharedRange || 'No overlapping versions'}`}
             type={sharedRange ? 'success' : 'error'}
             style={{ marginTop: '1rem' }}
             showIcon
@@ -245,7 +246,7 @@ function CompatibilityResults({
           
           {mixedESM && (
             <Alert
-              message="⚠ Warning: Mixed ESM and CJS"
+              title="⚠ Warning: Mixed ESM and CJS"
               description="Mixed ESM and CJS packages may cause bundling issues"
               type="warning"
               style={{ marginTop: '1rem' }}
@@ -262,7 +263,7 @@ function CompatibilityResults({
               {check.conflicts.map((conflict, idx) => (
                 <Alert
                   key={idx}
-                  message={conflict.reason}
+                  title={conflict.reason}
                   description={conflict.message}
                   type={conflict.severity === 'error' ? 'error' : 'warning'}
                   showIcon
@@ -423,7 +424,7 @@ function VersionCompatibilityMatrixCard({
       <Card title="Version Compatibility Matrix">
         {recommendedPair && (
           <Alert
-            message="★ Recommended Compatible Versions"
+            title="★ Recommended Compatible Versions"
             description={`${matrixData.pkg1Name}@${recommendedPair.v1} + ${matrixData.pkg2Name}@${recommendedPair.v2}`}
             type="success"
             showIcon
@@ -501,7 +502,7 @@ function DetailModal({
       <Space orientation="vertical" style={{ width: '100%' }} size="large">
         {/* Compatibility Status */}
         <Alert
-          message={compat.compatible ? '✓ Compatible' : '✗ Incompatible'}
+          title={compat.compatible ? '✓ Compatible' : '✗ Incompatible'}
           description={compat.reason || (compat.compatible ? 'These versions can be used together' : 'These versions have conflicts')}
           type={compat.compatible ? 'success' : 'error'}
           showIcon
@@ -525,7 +526,7 @@ function DetailModal({
             />
             {compat.sharedRange && (
               <Alert 
-                message={`✓ Overlapping Range: ${compat.sharedRange}`}
+                title={`✓ Overlapping Range: ${compat.sharedRange}`}
                 type="success"
                 style={{ marginTop: '0.5rem' }}
               />
@@ -554,7 +555,7 @@ function DetailModal({
             <h4>Warnings</h4>
             <Space orientation="vertical">
               {compat.warnings.map((warning: string, idx: number) => (
-                <Alert key={idx} message={warning} type="warning" showIcon />
+                <Alert key={idx} title={warning} type="warning" showIcon />
               ))}
             </Space>
           </div>

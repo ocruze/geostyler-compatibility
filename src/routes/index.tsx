@@ -108,7 +108,7 @@ function Dashboard() {
       {Object.entries(grouped).map(([category, pkgs]) => (
         <Card
           key={category}
-          title={category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+          title={category === "ui" ? "UI" : category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
         >
           <PackageList packages={pkgs} esmFilter={esmFilter} />
         </Card>

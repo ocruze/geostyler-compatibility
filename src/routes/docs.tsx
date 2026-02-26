@@ -33,7 +33,7 @@ function Docs() {
               size="small"
             />
             <Alert 
-              message="All style/data parsers depend on these core packages within specific version ranges"
+              title="All style/data parsers depend on these core packages within specific version ranges"
               type="info"
               style={{ marginTop: '1rem' }}
             />
@@ -45,7 +45,7 @@ function Docs() {
             <h4>🎨 Style Parsers</h4>
             <p>Convert between geostyler-style and specific style format representations (SLD, Mapbox, QGIS, etc.).</p>
             <Alert 
-              message="All require geostyler-style in specific version ranges"
+              title="All require geostyler-style in specific version ranges"
               description="When combining style parsers, they must share compatible geostyler-style versions"
               type="info"
             />
@@ -60,7 +60,7 @@ function Docs() {
             <h4>📊 Data Parsers</h4>
             <p>Convert between geostyler-data and specific data format representations (GeoJSON, WFS, Shapefile, CQL).</p>
             <Alert 
-              message="All require geostyler-data"
+              title="All require geostyler-data"
               description="Data parsers are less tightly coupled than style parsers - each has independent geostyler-data dependency"
               type="info"
             />
@@ -94,7 +94,7 @@ function Docs() {
               The primary factor for style parser compatibility. Each style parser specifies which versions of geostyler-style it supports.
             </p>
             <Alert 
-              message="When combining multiple style parsers, they must have overlapping geostyler-style ranges"
+              title="When combining multiple style parsers, they must have overlapping geostyler-style ranges"
               type="warning"
               showIcon
               style={{ marginBottom: '1rem' }}
@@ -144,7 +144,7 @@ function Docs() {
               Modern packages (2024+) are ESM-only, while older versions support CommonJS (CJS). Mixing can cause bundling issues.
             </p>
             <Alert 
-              message="⚠ Warning: Mixed ESM and CJS"
+              title="⚠ Warning: Mixed ESM and CJS"
               description="If some packages are ESM and others are CJS, your build tool must support interop"
               type="warning"
               showIcon
@@ -179,7 +179,7 @@ function Docs() {
               Some packages may have peer dependencies that conflict with other packages.
             </p>
             <Alert 
-              message="Check the package detail pages to see all dependencies and peer dependencies"
+              title="Check the package detail pages to see all dependencies and peer dependencies"
               type="info"
               showIcon
             />
