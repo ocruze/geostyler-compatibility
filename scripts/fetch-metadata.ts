@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 
 /**
- * Fetches package metadata from npm registry and GitHub API
- * Generates public/data/packages.json
+ * Fetches package metadata from the npm registry (serial, rate-limited).
+ * Generates src/data/packages.json
  */
 
 import * as fs from 'fs';
@@ -132,22 +132,16 @@ function processNpmData(npmData: any, repoName: string): Package {
       name: npmPackageName,
       version: versionTag,
       category,
-      dependencies: {
-        ...(versionData.dependencies || {}),
-        // Ensure data parsers depend on geostyler-data
-        ...(category === 'data-parser' && !versionData.dependencies?.['geostyler-data'] 
-          ? { 'geostyler-data': '>=1.0.0' } 
-          : {}),
-      },
+      dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
-      geostylerStyleRange: 
+      geostylerStyleRange:
         versionData.dependencies?.['geostyler-style'] ||
         versionData.peerDependencies?.['geostyler-style'],
       esmSupport: detectEsmSupport(versionData),
-      publishDate: npmData.time?.[versionTag] || new Date().toISOString(),
+      publishDate: npmData.time?.[versionTag] ?? '',
       isPrerelease: semver.prerelease(versionTag) !== null,
       repositoryUrl: `https://github.com/${repoName}`,
-      changelogUrl: `https://github.com/${repoName}/blob/master/CHANGELOG.md`,
+      changelogUrl: `https://github.com/${repoName}/blob/main/CHANGELOG.md`,
       npmUrl: `https://www.npmjs.com/package/${npmPackageName}/v/${versionTag}`,
     };
     
@@ -176,17 +170,19 @@ async function main() {
   console.log('Starting metadata fetch...');
   
   const packages: Package[] = [];
-  
+  const failures: string[] = [];
+
   for (const repo of REPOS) {
     const npmPackageName = REPO_TO_NPM[repo];
-    
+
     console.log(`\n--- Processing ${repo} ---`);
-    
-    // Fetch from both sources in parallel
+
+    // Fetch from the npm registry
     const npmData = await fetchNpmPackage(npmPackageName);
-    
+
     if (!npmData) {
       console.error(`Skipping ${repo} - no npm data`);
+      failures.push(repo);
       continue;
     }
     
@@ -209,6 +205,11 @@ async function main() {
   
   console.log(`\n✓ Successfully wrote ${packages.length} packages to ${OUTPUT_FILE}`);
   console.log(`Total versions: ${packages.reduce((sum, pkg) => sum + pkg.versions.length, 0)}`);
+
+  if (failures.length > 0) {
+    console.error(`\n✗ ${failures.length} package(s) failed to fetch: ${failures.join(', ')}`);
+    process.exitCode = 1;
+  }
 }
 
 // Only run main() when this file is executed directly (e.g. `tsx scripts/fetch-metadata.ts`),
