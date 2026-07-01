@@ -211,7 +211,11 @@ async function main() {
   console.log(`Total versions: ${packages.reduce((sum, pkg) => sum + pkg.versions.length, 0)}`);
 }
 
-main().catch(error => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+// Only run main() when this file is executed directly (e.g. `tsx scripts/fetch-metadata.ts`),
+// not when it's merely imported (e.g. by tests importing `detectEsmSupport`).
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
