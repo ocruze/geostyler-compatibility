@@ -23,10 +23,6 @@ export type DataFormat =
   | 'WFS'
   | 'Shapefile';
 
-/**
- * Support level for style/data features
- */
-export type SupportLevel = 'full' | 'partial' | 'none';
 
 /**
  * Package information including version and dependency details
@@ -70,11 +66,10 @@ export interface Package {
 /**
  * Compatibility conflict types
  */
-export type ConflictReason = 
+export type ConflictReason =
   | 'geostyler-style-mismatch'
   | 'peer-dep-conflict'
-  | 'esm-incompatible'
-  | 'build-incompatibility';
+  | 'esm-incompatible';
 
 /**
  * Severity levels for conflicts
@@ -112,25 +107,3 @@ export interface CompatibilityMatrix {
   checks: Record<string, CompatibilityCheck>; // key: "pkg1@v1,pkg2@v2"
 }
 
-/**
- * Repository metadata from GitHub
- */
-export interface RepoMetadata {
-  name: string;
-  fullName: string;
-  description: string;
-  stars: number;
-  updatedAt: string;
-  defaultBranch: string;
-  topics: string[];
-}
-
-/**
- * UnsupportedProperties structure (simplified)
- * Full structure is complex; this is for future enhancement
- */
-export interface UnsupportedProperties {
-  [symbolizerType: string]: {
-    [property: string]: SupportLevel | { support: SupportLevel; info: string };
-  };
-}

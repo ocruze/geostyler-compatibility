@@ -3,7 +3,7 @@
 /**
  * Computes compatibility between packages based on geostyler-style ranges,
  * ESM support, and peer dependencies
- * Generates public/data/compatibility-matrix.json
+ * Generates src/data/compatibility-matrix.json
  */
 
 import * as fs from 'fs';
