@@ -1,6 +1,6 @@
 import { createRootRoute, Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Layout, Menu } from 'antd';
-import { DatabaseOutlined, SwapOutlined, FileTextOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, SwapOutlined, FileTextOutlined, MenuOutlined } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
 
@@ -39,14 +39,15 @@ export const Route = createRootRoute({
             alignItems: 'center',
           }}
         >
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             GeoStyler Compatibility Dashboard
           </h1>
           <Menu
             mode="horizontal"
-            selectedKeys={[currentPath]}
+            selectedKeys={[menuItems.find((m) => currentPath === m.key || (m.key !== '/' && currentPath.startsWith(m.key)))?.key ?? '']}
             items={menuItems}
-            style={{ border: 'none', flex: 1, justifyContent: 'flex-end' }}
+            style={{ border: 'none', justifyContent: 'flex-end', flex: '0 1 auto', minWidth: 0 }}
+            overflowedIndicator={<MenuOutlined />}
           />
         </Header>
         <Content style={{ padding: '24px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
