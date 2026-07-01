@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { satisfies, intersectRanges, rangesOverlap } from '@/utils/semver';
+import { satisfies, intersectRanges, rangesOverlap, compareVersions } from '@/utils/semver';
 
 describe('test harness', () => {
   it('runs', () => {
@@ -44,5 +44,14 @@ describe('rangesOverlap', () => {
   });
   it('false when disjoint', () => {
     expect(rangesOverlap('^11.0.0', '^12.0.0')).toBe(false);
+  });
+});
+
+describe('compareVersions', () => {
+  it('orders valid versions', () => {
+    expect(compareVersions('1.0.0', '2.0.0')).toBe(-1);
+  });
+  it('throws on invalid input rather than reporting equal', () => {
+    expect(() => compareVersions('nope', '1.0.0')).toThrow();
   });
 });

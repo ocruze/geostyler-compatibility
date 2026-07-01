@@ -52,11 +52,7 @@ export function satisfies(version: string, range: string): boolean {
  * Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2
  */
 export function compareVersions(v1: string, v2: string): number {
-  try {
-    return semver.compare(v1, v2);
-  } catch {
-    return 0;
-  }
+  return semver.compare(v1, v2);
 }
 
 /**
