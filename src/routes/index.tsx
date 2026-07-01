@@ -153,12 +153,12 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
       title: 'Total Versions',
       dataIndex: 'versions',
       key: 'versionsCount',
-      render: (_: any, record: Package) => record.versions.length,
+      render: (_: unknown, record: Package) => record.versions.length,
     },
     {
       title: 'Module System',
       key: 'moduleSystem',
-      render: (_: any, record: Package) => {
+      render: (_: unknown, record: Package) => {
         const latestVersionData = record.versions.find(v => v.version === record.latestVersion);
         const isESM = latestVersionData?.esmSupport || false;
         return <Tag color={isESM ? 'green' : 'cyan'}>{isESM ? 'ESM' : 'CJS'}</Tag>;
@@ -167,7 +167,7 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: Package) => (
+      render: (_: unknown, record: Package) => (
         <Space>
           <Button
             type="link"

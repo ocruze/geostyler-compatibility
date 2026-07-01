@@ -126,12 +126,23 @@ export function checkVersionCompatibility(
 }
 
 /**
+ * Result shape returned by getVersionCompatibilityMatrix for a pair of packages.
+ */
+export interface VersionCompatibilityMatrixData {
+  pkg1Name: string;
+  pkg1Versions: PackageVersion[];
+  pkg2Name: string;
+  pkg2Versions: PackageVersion[];
+  matrix: Record<string, Record<string, VersionCompatibilityResult>>;
+}
+
+/**
  * Get version compatibility matrix for multiple packages
  */
 export function getVersionCompatibilityMatrix(
   packageIds: string[],
   allPackages: Package[]
-) {
+): VersionCompatibilityMatrixData | null {
   if (packageIds.length < 2) return null;
   
   // Parse package IDs (format: "name@version")
