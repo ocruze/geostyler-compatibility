@@ -175,6 +175,7 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
             icon={<GithubOutlined />}
             href={record.repositoryUrl}
             target='_blank'
+            rel="noopener noreferrer"
           >
             GitHub
           </Button>
@@ -184,6 +185,7 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
             icon={<LinkOutlined />}
             href={`https://www.npmjs.com/package/${record.name}`}
             target='_blank'
+            rel="noopener noreferrer"
           >
             npm
           </Button>

@@ -82,7 +82,7 @@ function Compare() {
               };
             })}
           />
-          <Button icon={<CloseCircleOutlined />} onClick={()=>setSelectedPackages([])} />
+          <Button icon={<CloseCircleOutlined />} onClick={()=>setSelectedPackages([])} aria-label="Clear selected packages" />
         </Space>
 
         {/* Selected Packages */}
@@ -364,14 +364,29 @@ function VersionCompatibilityMatrixCard({
           recommendedPair.v1 === record.version &&
           recommendedPair.v2 === v.version;
 
+        const verdict = compat.compatible
+          ? (compat.warnings.length > 0 ? 'compatible with warnings' : 'compatible')
+          : 'incompatible';
+        const cellLabel = `${matrixData.pkg1Name}@${record.version} and ${matrixData.pkg2Name}@${v.version}: ${verdict}. View details.`;
+        const openDetail = () => {
+          onSelectCell({ v1: record.version, v2: v.version });
+          setDetailModalOpen(true);
+        };
+
         return (
           <Tooltip
             title={compat.reason || (compat.compatible ? 'Compatible' : 'Incompatible')}
           >
             <div
-              onClick={() => {
-                onSelectCell({ v1: record.version, v2: v.version });
-                setDetailModalOpen(true);
+              role="button"
+              tabIndex={0}
+              aria-label={cellLabel}
+              onClick={openDetail}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openDetail();
+                }
               }}
               style={{
                 backgroundColor: compat.compatible ? '#f6ffed' : '#fef2f0',
