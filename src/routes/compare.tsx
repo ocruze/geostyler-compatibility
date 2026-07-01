@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { usePackages, useCompatibilityCheck, getVersionCompatibilityMatrix } from '@/api/queries';
 import { useState } from 'react';
 import { intersectRanges } from '@/utils/semver';
-import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button } from 'antd';
+import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button, Switch, Result } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
 
 type CompareSearch = {
@@ -304,12 +304,13 @@ interface VersionCompatibilityMatrixCardProps {
   onSelectCell: (cell: { v1: string; v2: string } | null) => void;
 }
 
-function VersionCompatibilityMatrixCard({ 
-  matrixData, 
+function VersionCompatibilityMatrixCard({
+  matrixData,
   selectedCell,
   onSelectCell
 }: VersionCompatibilityMatrixCardProps) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [problemsOnly, setProblemsOnly] = useState(true);
 
   // Find recommended version pair (latest compatible)
   let recommendedPair: { v1: string; v2: string } | null = null;
@@ -324,6 +325,24 @@ function VersionCompatibilityMatrixCard({
     if (recommendedPair) break;
   }
 
+  // A cell is a "problem" if it's incompatible or carries warnings.
+  const isProblemCell = (compat: { compatible: boolean; warnings: string[] }) =>
+    !compat.compatible || compat.warnings.length > 0;
+
+  // Only keep rows/columns that participate in at least one problem cell,
+  // so a "problems only" row/column never shows an all-clear cell with nothing to see.
+  const pkg1VersionsWithProblems = matrixData.pkg1Versions.filter((v1: any) =>
+    matrixData.pkg2Versions.some((v2: any) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
+  );
+  const pkg2VersionsWithProblems = matrixData.pkg2Versions.filter((v2: any) =>
+    matrixData.pkg1Versions.some((v1: any) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
+  );
+
+  const hasAnyProblems = pkg1VersionsWithProblems.length > 0 && pkg2VersionsWithProblems.length > 0;
+
+  const visiblePkg1Versions = problemsOnly ? pkg1VersionsWithProblems : matrixData.pkg1Versions;
+  const visiblePkg2Versions = problemsOnly ? pkg2VersionsWithProblems : matrixData.pkg2Versions;
+
   // Build matrix table columns
   const columns = [
     {
@@ -334,19 +353,19 @@ function VersionCompatibilityMatrixCard({
       fixed: 'left' as const,
       render: (version: string) => <code>{version}</code>,
     },
-    ...matrixData.pkg2Versions.map((v: any) => ({
+    ...visiblePkg2Versions.map((v: any) => ({
       title: <code style={{ fontSize: '12px' }}>{v.version}</code>,
       dataIndex: `v_${v.version}`,
       key: `v_${v.version}`,
       width: 80,
       render: (_: any, record: any) => {
         const compat = matrixData.matrix[record.version][v.version];
-        const isRecommended = recommendedPair && 
-          recommendedPair.v1 === record.version && 
+        const isRecommended = recommendedPair &&
+          recommendedPair.v1 === record.version &&
           recommendedPair.v2 === v.version;
-        
+
         return (
-          <Tooltip 
+          <Tooltip
             title={compat.reason || (compat.compatible ? 'Compatible' : 'Incompatible')}
           >
             <div
@@ -365,16 +384,16 @@ function VersionCompatibilityMatrixCard({
               }}
             >
               {isRecommended && (
-                <Badge 
-                  count="★" 
-                  style={{ 
+                <Badge
+                  count="★"
+                  style={{
                     backgroundColor: '#faad14',
                     color: '#fff',
                     fontSize: '10px',
                     position: 'absolute',
                     top: '-4px',
                     right: '-4px',
-                  }} 
+                  }}
                 />
               )}
               {compat.compatible ? (
@@ -392,9 +411,9 @@ function VersionCompatibilityMatrixCard({
   ];
 
   // Build matrix data
-  const matrixDataSource = matrixData.pkg1Versions.map((v1: any) => {
+  const matrixDataSource = visiblePkg1Versions.map((v1: any) => {
     const row: any = { version: v1.version };
-    for (const v2 of matrixData.pkg2Versions) {
+    for (const v2 of visiblePkg2Versions) {
       row[`v_${v2.version}`] = null; // Actual display is in render
     }
     return row;
@@ -419,6 +438,34 @@ function VersionCompatibilityMatrixCard({
     },
   ];
 
+  const grid = (
+    <>
+      <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+        <Table
+          columns={columns}
+          dataSource={matrixDataSource}
+          pagination={false}
+          size="small"
+          bordered
+          rowKey="version"
+          scroll={{ x: true }}
+        />
+      </div>
+
+      <p style={{ marginBottom: '1rem', fontSize: '12px', color: '#666' }}>
+        Showing the 20 most recent versions of each package.
+      </p>
+
+      <Collapse items={legendItems} />
+    </>
+  );
+
+  const fullGridPanel = {
+    key: 'full-matrix',
+    label: `Full version-by-version matrix (${matrixData.pkg1Versions.length}×${matrixData.pkg2Versions.length})`,
+    children: grid,
+  };
+
   return (
     <>
       <Card title="Version Compatibility Matrix">
@@ -432,23 +479,34 @@ function VersionCompatibilityMatrixCard({
           />
         )}
 
+        <Space style={{ marginBottom: '1rem' }}>
+          <Switch
+            checked={problemsOnly}
+            onChange={setProblemsOnly}
+          />
+          <span>Show only incompatible / warning combinations</span>
+        </Space>
+
         <p style={{ marginBottom: '1rem', fontSize: '12px', color: '#666' }}>
           Click any cell to see detailed compatibility information
         </p>
 
-        <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
-          <Table
-            columns={columns}
-            dataSource={matrixDataSource}
-            pagination={false}
-            size="small"
-            bordered
-            rowKey="version"
-            scroll={{ x: true }}
+        {problemsOnly && !hasAnyProblems ? (
+          <Result
+            status="success"
+            title="All checked version combinations are compatible."
+            subTitle="No incompatible or warning-level version pairs were found among the 20 most recent versions of each package."
+            style={{ padding: '2rem 0' }}
           />
-        </div>
-
-        <Collapse items={legendItems} />
+        ) : problemsOnly ? (
+          <div style={{ marginBottom: '1.5rem' }}>{grid}</div>
+        ) : (
+          <Collapse
+            defaultActiveKey={[]}
+            items={[fullGridPanel]}
+            style={{ marginBottom: '1.5rem' }}
+          />
+        )}
       </Card>
 
       {selectedCell && matrixData && (
