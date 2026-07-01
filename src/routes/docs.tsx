@@ -199,7 +199,7 @@ function Docs() {
         <Space orientation="vertical" style={{ width: '100%' }}>
           <ol style={{ lineHeight: '1.8' }}>
             <li>
-              <strong>Select 2 packages</strong>
+              <strong>Select packages</strong>
               <p>Go to the Compare page and add 2 or more packages using the package selector.</p>
             </li>
             <li>
@@ -214,7 +214,7 @@ function Docs() {
             </li>
             <li>
               <strong>Explore version matrix</strong>
-              <p>Scroll down to the "Version Compatibility Matrix" to see all version combinations:</p>
+              <p>Select exactly 2 packages to see the "Version Compatibility Matrix," which shows all version combinations between them:</p>
               <ul>
                 <li>Package A versions as rows, Package B versions as columns</li>
                 <li>Green cells = compatible versions</li>
@@ -263,7 +263,6 @@ function Docs() {
             <ul>
               <li><strong>Category Filter:</strong> Show only specific package types (core, style-parser, data-parser, ui)</li>
               <li><strong>Module System Filter:</strong> Filter by ESM or CommonJS support</li>
-              <li><strong>Search:</strong> Find packages by name or category</li>
             </ul>
           </div>
 
