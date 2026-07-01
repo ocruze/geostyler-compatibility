@@ -31,18 +31,24 @@ function Dashboard() {
     return <Card>No data available</Card>;
   }
 
-  // Filter packages
-  let filteredPackages = packages;
-  if (selectedCategory !== 'all') {
-    filteredPackages = filteredPackages.filter(p => p.category === selectedCategory);
-  }
+  // Apply filters
+  const visiblePackages = packages.filter((p) => {
+    if (selectedCategory !== 'all' && p.category !== selectedCategory) return false;
+    if (esmFilter !== 'all') {
+      const latest = p.versions.find((v) => v.version === p.latestVersion);
+      const isEsm = latest?.esmSupport ?? false;
+      if (esmFilter === 'esm' && !isEsm) return false;
+      if (esmFilter === 'cjs' && isEsm) return false;
+    }
+    return true;
+  });
 
   // Group packages by category
   const grouped: Record<PackageCategory, Package[]> = {
-    core: packages.filter(p => p.category === 'core'),
-    ui: packages.filter(p => p.category === 'ui'),
-    'style-parser': packages.filter(p => p.category === 'style-parser'),
-    'data-parser': packages.filter(p => p.category === 'data-parser'),
+    core: visiblePackages.filter((p) => p.category === 'core'),
+    ui: visiblePackages.filter((p) => p.category === 'ui'),
+    'style-parser': visiblePackages.filter((p) => p.category === 'style-parser'),
+    'data-parser': visiblePackages.filter((p) => p.category === 'data-parser'),
   };
 
   return (
@@ -105,14 +111,17 @@ function Dashboard() {
       </Card>
 
       {/* Package Lists by Category */}
-      {Object.entries(grouped).map(([category, pkgs]) => (
+      {Object.entries(grouped).map(([category, pkgs]) => {
+        if (pkgs.length === 0) return null;
+        return (
         <Card
           key={category}
           title={category === "ui" ? "UI" : category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
         >
           <PackageList packages={pkgs} esmFilter={esmFilter} />
         </Card>
-      ))}
+        );
+      })}
     </Space>
   );
 }
