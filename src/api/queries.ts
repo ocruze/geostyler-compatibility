@@ -2,6 +2,7 @@ import type { Package, CompatibilityMatrix, PackageVersion } from '@/types/compa
 import packagesData from '@/data/packages.json';
 import compatibilityData from '@/data/compatibility-matrix.json';
 import { intersectRanges } from '@/utils/semver';
+import * as semver from 'semver';
 
 /**
  * Hook to fetch all packages
@@ -93,6 +94,23 @@ export function checkVersionCompatibility(
     }
   }
   
+  // Peer-dependency conflicts (both directions) — matches the build script
+  const peerConflict = (a: PackageVersion, b: PackageVersion): string | null => {
+    const range = a.peerDependencies?.[b.name];
+    if (!range) return null;
+    try {
+      return semver.satisfies(b.version, range)
+        ? null
+        : `${a.name}@${a.version} requires peer ${b.name}@${range}, but found ${b.version}`;
+    } catch {
+      return null;
+    }
+  };
+  const peerReason = peerConflict(v1, v2) ?? peerConflict(v2, v1);
+  if (peerReason) {
+    return { compatible: false, sharedRange, reason: peerReason, warnings };
+  }
+
   // Check ESM/CJS compatibility
   const esm1 = v1.esmSupport;
   const esm2 = v2.esmSupport;

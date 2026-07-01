@@ -63,29 +63,28 @@ function checkPairCompatibility(pkg1: PackageVersion, pkg2: PackageVersion): Con
     });
   }
   
-  // Check peer dependency conflicts
-  // If pkg1 has a peer dep that pkg2 satisfies
-  for (const [depName, depRange] of Object.entries(pkg1.peerDependencies)) {
-    if (pkg2.name === depName) {
+  // Check peer dependency conflicts in BOTH directions
+  const checkPeers = (a: PackageVersion, b: PackageVersion) => {
+    for (const [depName, depRange] of Object.entries(a.peerDependencies)) {
+      if (b.name !== depName) continue;
       try {
-        if (!semver.satisfies(pkg2.version, depRange)) {
+        if (!semver.satisfies(b.version, depRange)) {
           conflicts.push({
             reason: 'peer-dep-conflict',
             severity: 'error',
-            message: `${pkg1.name}@${pkg1.version} requires peer ${depName}@${depRange}, but found ${pkg2.version}`,
-            packages: [`${pkg1.name}@${pkg1.version}`, `${pkg2.name}@${pkg2.version}`],
-            details: {
-              requiredRange: depRange,
-              foundVersion: pkg2.version,
-            },
+            message: `${a.name}@${a.version} requires peer ${depName}@${depRange}, but found ${b.version}`,
+            packages: [`${a.name}@${a.version}`, `${b.name}@${b.version}`],
+            details: { requiredRange: depRange, foundVersion: b.version },
           });
         }
-      } catch (error) {
-        // Invalid semver, skip
+      } catch {
+        console.warn(`Invalid peer range ${a.name}@${a.version} -> ${depName}@${depRange}`);
       }
     }
-  }
-  
+  };
+  checkPeers(pkg1, pkg2);
+  checkPeers(pkg2, pkg1);
+
   return conflicts;
 }
 
