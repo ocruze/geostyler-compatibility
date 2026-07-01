@@ -144,10 +144,9 @@ function generateCommonChecks(packages: Package[]): Record<string, Compatibility
   console.log('Generating compatibility checks...');
   
   // Get latest versions of each package
-  const latestVersions = packages.map(pkg => {
-    const latest = pkg.versions.find(v => v.version === pkg.latestVersion);
-    return latest || pkg.versions[0];
-  }).filter(v => v && !v.isPrerelease);
+  const latestVersions = packages
+    .map((pkg) => pkg.versions.find((v) => v.version === pkg.latestVersion))
+    .filter((v): v is PackageVersion => !!v && !v.isPrerelease);
   
   // Check all pairs of latest versions
   console.log('  - Checking all latest version pairs...');
@@ -214,13 +213,14 @@ async function main() {
   
   // Print summary statistics
   const totalChecks = Object.keys(checks).length;
-  const compatibleChecks = Object.values(checks).filter(c => c.compatible).length;
+  const compatibleChecks = Object.values(checks).filter((c) => c.compatible).length;
   const incompatibleChecks = totalChecks - compatibleChecks;
-  
+  const pct = (n: number) => (totalChecks === 0 ? '0.0' : ((n / totalChecks) * 100).toFixed(1));
+
   console.log('\nSummary:');
   console.log(`  Total checks: ${totalChecks}`);
-  console.log(`  Compatible: ${compatibleChecks} (${((compatibleChecks / totalChecks) * 100).toFixed(1)}%)`);
-  console.log(`  Incompatible: ${incompatibleChecks} (${((incompatibleChecks / totalChecks) * 100).toFixed(1)}%)`);
+  console.log(`  Compatible: ${compatibleChecks} (${pct(compatibleChecks)}%)`);
+  console.log(`  Incompatible: ${incompatibleChecks} (${pct(incompatibleChecks)}%)`);
 }
 
 main().catch(error => {
