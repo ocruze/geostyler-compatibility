@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { Card, Collapse, Space, Table, Alert, Badge, Divider } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 
@@ -7,6 +8,10 @@ export const Route = createFileRoute('/docs')({
 });
 
 function Docs() {
+  useEffect(() => {
+    document.title = 'Docs · GeoStyler Compatibility';
+  }, []);
+
   const docItems = [
     {
       key: 'categories',
