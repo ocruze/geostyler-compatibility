@@ -1,53 +1,27 @@
 import * as semver from 'semver';
 
 /**
- * Find the intersection of multiple semver ranges
- * Returns the most restrictive range that satisfies all input ranges
+ * Find the intersection of a set of semver ranges.
+ * Returns a range string satisfied by EVERY input range, or null if the
+ * intersection is empty (or all inputs are invalid).
+ *
+ * NOTE: inputs are ANDed by concatenation, which is exact for simple ranges
+ * (carets/tildes/comparators). geostyler-style ranges in this dataset never
+ * use `||`; if a `||` range is ever introduced, revisit this.
  */
 export function intersectRanges(ranges: string[]): string | null {
-  if (ranges.length === 0) return null;
-  if (ranges.length === 1) return ranges[0];
-
-  // Convert all ranges to a common format and find intersection
-  try {
-    // Get all versions that satisfy the first range up to version 20.0.0
-    const testVersions: string[] = [];
-    for (let major = 0; major <= 20; major++) {
-      for (let minor = 0; minor <= 10; minor++) {
-        testVersions.push(`${major}.${minor}.0`);
-      }
-    }
-
-    // Filter to versions that satisfy ALL ranges
-    const satisfyingVersions = testVersions.filter(version =>
-      ranges.every(range => {
-        try {
-          return semver.satisfies(version, range);
-        } catch {
-          return false;
-        }
-      })
-    );
-
-    if (satisfyingVersions.length === 0) return null;
-
-    // Return the range that covers the satisfying versions
-    const minVersion = satisfyingVersions[0];
-    const maxVersion = satisfyingVersions[satisfyingVersions.length - 1];
-
-    if (minVersion === maxVersion) return minVersion;
-    
-    // Return a caret range from the minimum version
-    return `^${minVersion}`;
-  } catch (error) {
-    console.error('Error intersecting ranges:', error);
-    return null;
-  }
+  const valid = ranges.filter((r) => r.trim() && semver.validRange(r) !== null);
+  if (valid.length === 0) return null;
+  // Common case: all inputs identical -> return the pretty original.
+  if (valid.every((r) => r === valid[0])) return valid[0];
+  const combined = valid.join(' ');
+  const normalized = semver.validRange(combined);
+  if (!normalized) return null;
+  // minVersion is null when the combined range is unsatisfiable (empty set).
+  if (!semver.minVersion(normalized)) return null;
+  return normalized;
 }
 
-/**
- * Check if two semver ranges overlap
- */
 export function rangesOverlap(range1: string, range2: string): boolean {
   return intersectRanges([range1, range2]) !== null;
 }
