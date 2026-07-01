@@ -155,7 +155,7 @@ export function getVersionCompatibilityMatrix(
   if (packageData.length === 2) {
     const [pkg1Data, pkg2Data] = packageData;
     
-    // Limit to last 20 versions for performance
+    // Versions are pre-sorted newest-first, so this selects the newest 20 versions for performance
     const versions1 = pkg1Data.allVersions.slice(0, 20);
     const versions2 = pkg2Data.allVersions.slice(0, 20);
     
