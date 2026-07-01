@@ -6,10 +6,12 @@ import enUS from 'antd/locale/en_US';
 import { routeTree } from './routeTree.gen';
 
 // Create a new router instance
-const router = createRouter({ 
+const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
   basepath: (import.meta.env.BASE_URL as string) ?? '/',
+  defaultNotFoundComponent: () => <div style={{ padding: 24 }}>Page not found. <a href={import.meta.env.BASE_URL}>Go home</a></div>,
+  defaultErrorComponent: ({ error }: { error: Error }) => <div style={{ padding: 24 }}>Something went wrong: {error.message}</div>,
 });
 
 // Register the router instance for type safety
