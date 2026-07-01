@@ -1,7 +1,14 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { usePackages, useCompatibilityCheck, getVersionCompatibilityMatrix } from '@/api/queries';
+import {
+  usePackages,
+  useCompatibilityCheck,
+  getVersionCompatibilityMatrix,
+  type VersionCompatibilityMatrixData,
+  type VersionCompatibilityResult,
+} from '@/api/queries';
 import { useEffect, useState } from 'react';
 import { intersectRanges } from '@/utils/semver';
+import type { Package, PackageVersion } from '@/types/compatibility';
 import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button, Switch, Result } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
 
@@ -16,11 +23,11 @@ export const Route = createFileRoute('/compare')({
       packages: (search.packages as string) || undefined,
     };
   },
-} as any);
+});
 
 function Compare() {
   const searchParams = Route.useSearch() as CompareSearch;
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: Route.fullPath });
   const { data: allPackages, isLoading } = usePackages();
 
   const [selectedPackages, setSelectedPackages] = useState<string[]>(
@@ -44,7 +51,7 @@ function Compare() {
       const updated = [...selectedPackages, packageId];
       setSelectedPackages(updated);
       navigate({
-        search: { packages: updated.join(',') } as any,
+        search: { packages: updated.join(',') } satisfies CompareSearch,
       });
     }
   };
@@ -53,7 +60,7 @@ function Compare() {
     const updated = selectedPackages.filter(p => p !== packageId);
     setSelectedPackages(updated);
     navigate({
-      search: (updated.length > 0 ? { packages: updated.join(',') } : {}) as any,
+      search: (updated.length > 0 ? { packages: updated.join(',') } : {}) satisfies CompareSearch,
     });
   };
 
@@ -130,12 +137,12 @@ function Compare() {
   );
 }
 
-function CompatibilityResults({ 
-  packageIds, 
-  allPackages 
-}: { 
+function CompatibilityResults({
+  packageIds,
+  allPackages
+}: {
   packageIds: string[];
-  allPackages: any[];
+  allPackages: Package[];
 }) {
   const { data: check } = useCompatibilityCheck(packageIds);
   const [selectedCell, setSelectedCell] = useState<{ v1: string; v2: string } | null>(null);
@@ -149,7 +156,7 @@ function CompatibilityResults({
     const name = id.slice(0, lastAtIndex);
     const version = id.slice(lastAtIndex + 1);
     const pkg = allPackages.find(p => p.name === name);
-    const versionData = pkg?.versions.find((v: any) => v.version === version);
+    const versionData = pkg?.versions.find((v: PackageVersion) => v.version === version);
     return { name, version, data: versionData };
   }).filter(p => p.data);
 
@@ -303,7 +310,7 @@ function CompatibilityResults({
 }
 
 interface VersionCompatibilityMatrixCardProps {
-  matrixData: any;
+  matrixData: VersionCompatibilityMatrixData;
   selectedCell: { v1: string; v2: string } | null;
   onSelectCell: (cell: { v1: string; v2: string } | null) => void;
 }
@@ -335,11 +342,11 @@ function VersionCompatibilityMatrixCard({
 
   // Only keep rows/columns that participate in at least one problem cell,
   // so a "problems only" row/column never shows an all-clear cell with nothing to see.
-  const pkg1VersionsWithProblems = matrixData.pkg1Versions.filter((v1: any) =>
-    matrixData.pkg2Versions.some((v2: any) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
+  const pkg1VersionsWithProblems = matrixData.pkg1Versions.filter((v1: PackageVersion) =>
+    matrixData.pkg2Versions.some((v2: PackageVersion) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
   );
-  const pkg2VersionsWithProblems = matrixData.pkg2Versions.filter((v2: any) =>
-    matrixData.pkg1Versions.some((v1: any) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
+  const pkg2VersionsWithProblems = matrixData.pkg2Versions.filter((v2: PackageVersion) =>
+    matrixData.pkg1Versions.some((v1: PackageVersion) => isProblemCell(matrixData.matrix[v1.version][v2.version]))
   );
 
   const hasAnyProblems = pkg1VersionsWithProblems.length > 0 && pkg2VersionsWithProblems.length > 0;
@@ -357,12 +364,12 @@ function VersionCompatibilityMatrixCard({
       fixed: 'left' as const,
       render: (version: string) => <code>{version}</code>,
     },
-    ...visiblePkg2Versions.map((v: any) => ({
+    ...visiblePkg2Versions.map((v: PackageVersion) => ({
       title: <code style={{ fontSize: '12px' }}>{v.version}</code>,
       dataIndex: `v_${v.version}`,
       key: `v_${v.version}`,
       width: 80,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: { version: string }) => {
         const compat = matrixData.matrix[record.version][v.version];
         const isRecommended = recommendedPair &&
           recommendedPair.v1 === record.version &&
@@ -430,13 +437,14 @@ function VersionCompatibilityMatrixCard({
   ];
 
   // Build matrix data
-  const matrixDataSource = visiblePkg1Versions.map((v1: any) => {
-    const row: any = { version: v1.version };
-    for (const v2 of visiblePkg2Versions) {
-      row[`v_${v2.version}`] = null; // Actual display is in render
-    }
-    return row;
-  });
+  const matrixDataSource: ({ version: string } & Record<string, string | null>)[] =
+    visiblePkg1Versions.map((v1: PackageVersion) => {
+      const row: { version: string } & Record<string, string | null> = { version: v1.version };
+      for (const v2 of visiblePkg2Versions) {
+        row[`v_${v2.version}`] = null; // Actual display is in render
+      }
+      return row;
+    });
 
   // Build legend
   const legendItems = [
@@ -537,8 +545,8 @@ function VersionCompatibilityMatrixCard({
           pkg2Name={matrixData.pkg2Name}
           pkg2Version={selectedCell.v2}
           compat={matrixData.matrix[selectedCell.v1][selectedCell.v2]}
-          pkg1Data={matrixData.pkg1Versions.find((v: any) => v.version === selectedCell.v1)}
-          pkg2Data={matrixData.pkg2Versions.find((v: any) => v.version === selectedCell.v2)}
+          pkg1Data={matrixData.pkg1Versions.find((v: PackageVersion) => v.version === selectedCell.v1)}
+          pkg2Data={matrixData.pkg2Versions.find((v: PackageVersion) => v.version === selectedCell.v2)}
         />
       )}
     </>
@@ -552,9 +560,9 @@ interface DetailModalProps {
   pkg1Version: string;
   pkg2Name: string;
   pkg2Version: string;
-  compat: any;
-  pkg1Data: any;
-  pkg2Data: any;
+  compat: VersionCompatibilityResult;
+  pkg1Data: PackageVersion | undefined;
+  pkg2Data: PackageVersion | undefined;
 }
 
 function DetailModal({

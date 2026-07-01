@@ -10,7 +10,7 @@
         "fetch-metadata": "tsx scripts/fetch-metadata.ts",
         "compute-compatibility": "tsx scripts/compute-compatibility.ts",
         "generate-data": "npm run fetch-metadata && npm run compute-compatibility",
-        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
         "test": "vitest run",
         "test:watch": "vitest"
     },

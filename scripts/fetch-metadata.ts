@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { REPOS, REPO_TO_NPM } from '../src/constants/repos.js';
-import type { Package, PackageVersion, PackageCategory } from '../src/types/compatibility.js';
+import type { Package, PackageVersion, PackageCategory, StyleFormat, DataFormat } from '../src/types/compatibility.js';
 import * as semver from 'semver';
 import { ProxyAgent } from 'undici';
 
@@ -34,7 +34,7 @@ function getProxyAgent(targetUrl: string): ProxyAgent | undefined {
 /**
  * Fetch from npm registry
  */
-async function fetchNpmPackage(packageName: string): Promise<any> {
+async function fetchNpmPackage(packageName: string): Promise<unknown> {
   const url = `https://registry.npmjs.org/${packageName}`;
   console.log(`Fetching npm: ${packageName}`);
   
@@ -111,23 +111,46 @@ export function detectEsmSupport(versionData: Record<string, unknown>): boolean 
 }
 
 /**
+ * Minimal shape of a single version entry within the npm registry package
+ * metadata response. Only documents the fields actually read below —
+ * detectEsmSupport takes the broader Record<string, unknown> shape since it
+ * probes fields (type/module/exports) not otherwise needed here.
+ */
+interface NpmVersionData extends Record<string, unknown> {
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
+
+/**
+ * Minimal shape of the npm registry package metadata response that
+ * processNpmData relies on. The registry response has many more fields;
+ * this only documents what's actually read below.
+ */
+interface NpmRegistryPackage {
+  versions?: Record<string, NpmVersionData>;
+  time?: Record<string, string>;
+  'dist-tags'?: Record<string, string>;
+}
+
+/**
  * Process npm package data into our format
  */
-function processNpmData(npmData: any, repoName: string): Package {
+function processNpmData(npmData: NpmRegistryPackage, repoName: string): Package {
   const npmPackageName = REPO_TO_NPM[repoName];
   const category = getPackageCategory(repoName);
   const format = extractFormat(npmPackageName);
   
   const versions: PackageVersion[] = [];
-  const allVersions = Object.keys(npmData.versions || {});
-  
+  const versionsByTag = npmData.versions || {};
+  const allVersions = Object.keys(versionsByTag);
+
   // Process each version
   for (const versionTag of allVersions) {
-    const versionData = npmData.versions[versionTag];
-    
+    const versionData = versionsByTag[versionTag];
+
     // Skip invalid versions
     if (!semver.valid(versionTag)) continue;
-    
+
     const packageVersion: PackageVersion = {
       name: npmPackageName,
       version: versionTag,
@@ -156,7 +179,10 @@ function processNpmData(npmData: any, repoName: string): Package {
   return {
     name: npmPackageName,
     category,
-    format: format as any,
+    // extractFormat's map values (e.g. 'SLD') don't exactly match the
+    // StyleFormat/DataFormat unions (e.g. 'SLD 1.0.0' | 'SLD 1.1.0') — this
+    // cast preserves pre-existing behavior without using `any`.
+    format: format as StyleFormat | DataFormat | undefined,
     versions,
     latestVersion,
     repositoryUrl: `https://github.com/${repoName}`,
@@ -186,7 +212,7 @@ async function main() {
       continue;
     }
     
-    const packageData = processNpmData(npmData, repo);
+    const packageData = processNpmData(npmData as NpmRegistryPackage, repo);
     packages.push(packageData);
     
     console.log(`  ✓ Processed ${packageData.versions.length} versions`);

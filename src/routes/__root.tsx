@@ -5,7 +5,12 @@ import { DatabaseOutlined, SwapOutlined, FileTextOutlined, MenuOutlined } from '
 const { Header, Content } = Layout;
 
 export const Route = createRootRoute({
+  // This anonymous arrow function is the route's React component (per
+  // TanStack Router's file-based `component:` API); its shape defeats the
+  // rule's name-based component/hook detection, so the hook call below is a
+  // false positive.
   component: () => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- see comment above
     const location = useLocation();
     const currentPath = location.pathname;
 

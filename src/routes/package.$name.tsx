@@ -233,7 +233,7 @@ function VersionHistoryTable({
     {
       title: 'Module System',
       key: 'esm',
-      render: (_: any, record: PackageVersion) => (
+      render: (_: unknown, record: PackageVersion) => (
         <Tag color={record.esmSupport ? 'green' : 'cyan'}>
           {record.esmSupport ? 'ESM' : 'CJS'}
         </Tag>
@@ -250,7 +250,7 @@ function VersionHistoryTable({
     {
       title: 'Status',
       key: 'status',
-      render: (_: any, record: PackageVersion) =>
+      render: (_: unknown, record: PackageVersion) =>
         record.isPrerelease ? <Tag color="orange">Prerelease</Tag> : null,
     },
   ];
