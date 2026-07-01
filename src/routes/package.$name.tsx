@@ -41,13 +41,11 @@ function PackageDetail() {
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Back Link */}
-      <Button 
-        type="text" 
-        icon={<ArrowLeftOutlined />} 
-        onClick={() => window.history.back()}
-      >
-        Back
-      </Button>
+      <Link to="/">
+        <Button type="text" icon={<ArrowLeftOutlined />}>
+          Back to Dashboard
+        </Button>
+      </Link>
 
       {/* Header */}
       <Card>
@@ -60,16 +58,20 @@ function PackageDetail() {
           <Tag color="blue">{pkg.category}</Tag>
         </Space>
         <Space style={{ marginTop: '1rem' }}>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<GithubOutlined />}
-            onClick={() => window.open(pkg.repositoryUrl, '_blank')}
+            href={pkg.repositoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             GitHub Repository
           </Button>
-          <Button 
+          <Button
             icon={<LinkOutlined />}
-            onClick={() => window.open(`https://www.npmjs.com/package/${pkg.name}`, '_blank')}
+            href={`https://www.npmjs.com/package/${pkg.name}`}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             npm Package
           </Button>
@@ -96,10 +98,9 @@ function PackageDetail() {
 
       {/* All Versions */}
       <Card title={`Version History (${pkg.versions.length} versions)`}>
-        <VersionHistoryTable 
-          versions={pkg.versions} 
+        <VersionHistoryTable
+          versions={pkg.versions}
           latestVersion={pkg.latestVersion}
-          onSelectVersion={setSelectedVersion}
         />
       </Card>
     </Space>
@@ -200,14 +201,12 @@ function DependencyTable({ deps }: { deps: Record<string, string> }) {
   return <Table columns={columns} dataSource={data} pagination={false} />;
 }
 
-function VersionHistoryTable({ 
-  versions, 
+function VersionHistoryTable({
+  versions,
   latestVersion,
-  onSelectVersion,
-}: { 
+}: {
   versions: PackageVersion[];
   latestVersion: string;
-  onSelectVersion: (version: string) => void;
 }) {
   const columns = [
     {
@@ -258,10 +257,6 @@ function VersionHistoryTable({
       dataSource={versions}
       rowKey="version"
       pagination={{ pageSize: 20 }}
-      onRow={(record) => ({
-        onClick: () => onSelectVersion(record.version),
-        style: { cursor: 'pointer' },
-      })}
     />
   );
 }
