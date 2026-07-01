@@ -95,17 +95,20 @@ function Dashboard() {
       {/* Package Statistics */}
       <Card title="Package Overview">
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} lg={6}>
+          <Col xs={12} sm={8} md={4}>
             <Statistic title="Total Packages" value={packages.length} />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic title="Style Parsers" value={grouped['style-parser'].length} />
+          <Col xs={12} sm={8} md={4}>
+            <Statistic title="Core" value={packages.filter((p) => p.category === 'core').length} />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic title="Data Parsers" value={grouped['data-parser'].length} />
+          <Col xs={12} sm={8} md={4}>
+            <Statistic title="Style Parsers" value={packages.filter((p) => p.category === 'style-parser').length} />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Statistic title="UI Components" value={grouped['ui'].length} />
+          <Col xs={12} sm={8} md={4}>
+            <Statistic title="Data Parsers" value={packages.filter((p) => p.category === 'data-parser').length} />
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Statistic title="UI Components" value={packages.filter((p) => p.category === 'ui').length} />
           </Col>
         </Row>
       </Card>
