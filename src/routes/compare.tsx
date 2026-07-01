@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { usePackages, useCompatibilityCheck, getVersionCompatibilityMatrix } from '@/api/queries';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { intersectRanges } from '@/utils/semver';
 import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button, Switch, Result } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
@@ -22,10 +22,14 @@ function Compare() {
   const searchParams = Route.useSearch() as CompareSearch;
   const navigate = useNavigate();
   const { data: allPackages, isLoading } = usePackages();
-  
+
   const [selectedPackages, setSelectedPackages] = useState<string[]>(
     searchParams.packages ? searchParams.packages.split(',') : []
   );
+
+  useEffect(() => {
+    document.title = 'Compare · GeoStyler Compatibility';
+  }, []);
 
   if (isLoading) {
     return <Card loading />;

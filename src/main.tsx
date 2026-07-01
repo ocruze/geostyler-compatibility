@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntApp, theme } from 'antd';
+import enUS from 'antd/locale/en_US';
 import { routeTree } from './routeTree.gen';
 
 // Create a new router instance
@@ -20,8 +21,13 @@ declare module '@tanstack/react-router' {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider>
-      <RouterProvider router={router} />
+    <ConfigProvider
+      locale={enUS}
+      theme={{ token: { colorPrimary: '#1677ff' }, algorithm: theme.defaultAlgorithm }}
+    >
+      <AntApp>
+        <RouterProvider router={router} />
+      </AntApp>
     </ConfigProvider>
   </React.StrictMode>
 );

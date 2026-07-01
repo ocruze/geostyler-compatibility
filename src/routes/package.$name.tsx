@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { usePackage } from '@/api/queries';
 import type { PackageVersion } from '@/types/compatibility';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, Table, Select, Space, Tag, Button, Spin, Tabs } from 'antd';
 import { ArrowLeftOutlined, GithubOutlined, LinkOutlined } from '@ant-design/icons';
 
@@ -13,6 +13,10 @@ function PackageDetail() {
   const { name } = Route.useParams();
   const { data: pkg, isLoading, error } = usePackage(name);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = pkg ? `${pkg.name} · GeoStyler Compatibility` : 'GeoStyler Compatibility';
+  }, [pkg]);
 
   if (isLoading) {
     return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', minHeight: '400px' }} />;
