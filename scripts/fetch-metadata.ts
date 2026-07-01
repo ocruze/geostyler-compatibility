@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { REPOS, REPO_TO_NPM, ESM_VERSION_THRESHOLD } from '../src/constants/repos.js';
+import { REPOS, REPO_TO_NPM } from '../src/constants/repos.js';
 import type { Package, PackageVersion, PackageCategory } from '../src/types/compatibility.js';
 import * as semver from 'semver';
 import { ProxyAgent } from 'undici';
@@ -95,17 +95,19 @@ function extractFormat(packageName: string): string | undefined {
 }
 
 /**
- * Check if version supports ESM based on version threshold
+ * Detect ESM support from the version's package.json metadata.
+ * Prefers ground truth over version-number guessing.
  */
-function supportsESM(packageName: string, version: string): boolean {
-  const threshold = ESM_VERSION_THRESHOLD[packageName];
-  if (!threshold) return false;
-  
-  try {
-    return semver.gte(version, threshold);
-  } catch {
-    return false;
-  }
+export function detectEsmSupport(versionData: Record<string, unknown>): boolean {
+  if (versionData?.type === 'module') return true;
+  if (versionData?.module) return true;
+  const exp = versionData?.exports;
+  const hasImport = (node: unknown): boolean => {
+    if (!node || typeof node !== 'object') return false;
+    if ('import' in (node as Record<string, unknown>)) return true;
+    return Object.values(node as Record<string, unknown>).some(hasImport);
+  };
+  return hasImport(exp);
 }
 
 /**
@@ -141,7 +143,7 @@ function processNpmData(npmData: any, repoName: string): Package {
       geostylerStyleRange: 
         versionData.dependencies?.['geostyler-style'] ||
         versionData.peerDependencies?.['geostyler-style'],
-      esmSupport: supportsESM(npmPackageName, versionTag),
+      esmSupport: detectEsmSupport(versionData),
       publishDate: npmData.time?.[versionTag] || new Date().toISOString(),
       isPrerelease: semver.prerelease(versionTag) !== null,
       repositoryUrl: `https://github.com/${repoName}`,
