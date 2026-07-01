@@ -10,7 +10,9 @@
         "fetch-metadata": "tsx scripts/fetch-metadata.ts",
         "compute-compatibility": "tsx scripts/compute-compatibility.ts",
         "generate-data": "npm run fetch-metadata && npm run compute-compatibility",
-        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "@ant-design/icons": "^6.1.0",
@@ -32,9 +34,10 @@
         "eslint": "^9.10.0",
         "eslint-plugin-react-hooks": "^5.0.0",
         "eslint-plugin-react-refresh": "^0.5.0",
-        "undici": "^7.3.0",
         "tsx": "^4.19.1",
         "typescript": "^5.6.2",
-        "vite": "^7.0.0"
+        "undici": "^7.3.0",
+        "vite": "^7.0.0",
+        "vitest": "^2.1.9"
     }
 }
