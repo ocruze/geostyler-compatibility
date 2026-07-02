@@ -5,7 +5,7 @@ A web interface for checking compatibility between GeoStyler packages — style 
 ## 🎯 Features
 
 - **Package Overview**: Browse all GeoStyler packages with their latest versions and metadata
-- **Compatibility Matrix**: Pre-computed compatibility checks for package combinations
+- **Compatibility Matrix**: Pre-computed compatibility checks for package combinations; the Compare page's version-by-version matrix (exactly 2 packages) defaults to a "problems only" view with the full grid collapsed
 - **Package Details**: View version history, dependencies, and geostyler-style ranges
 - **Package Comparison**: Compare multiple packages to detect compatibility conflicts
 - **ESM/CJS Tracking**: See which packages support ESM vs CJS module systems
@@ -17,27 +17,25 @@ A web interface for checking compatibility between GeoStyler packages — style 
 
 1. **Fetch Metadata** ([scripts/fetch-metadata.ts](scripts/fetch-metadata.ts))
    - Pulls package data from npm registry
-   - Fetches repository metadata from GitHub API
-   - Outputs: `public/data/packages.json`
+   - Outputs: `src/data/packages.json`
 
 2. **Compute Compatibility** ([scripts/compute-compatibility.ts](scripts/compute-compatibility.ts))
    - Analyzes geostyler-style version ranges
    - Checks ESM/CJS compatibility
    - Detects peer dependency conflicts
-   - Outputs: `public/data/compatibility-matrix.json`
+   - Outputs: `src/data/compatibility-matrix.json`
 
 ### Frontend (Runtime)
 
 - **React SPA** with Vite
 - **TanStack Router** for type-safe routing
-- **TanStack Query** for data loading with caching
-- Loads static JSON files generated at build time
+- No runtime data fetching — static JSON (generated at build time) is imported directly; `use*` hooks in `src/api/queries.ts` are synchronous wrappers, not TanStack Query
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24 (pinned via `.nvmrc`, currently `24.14.0`)
 - npm/yarn/pnpm
 
 ### Installation
@@ -48,13 +46,8 @@ npm install
 
 ### Local Development
 
-1. Generate data (requires GitHub token for API access):
+1. Generate data:
    ```bash
-   # Create .env file
-   cp .env.example .env
-   # Add your GITHUB_TOKEN to .env
-   
-   # Fetch metadata and compute compatibility
    npm run generate-data
    ```
 
@@ -70,9 +63,11 @@ npm install
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
-- `npm run fetch-metadata` - Fetch package data from npm/GitHub
+- `npm run fetch-metadata` - Fetch package data from the npm registry
 - `npm run compute-compatibility` - Generate compatibility matrix
 - `npm run generate-data` - Run both data generation steps
+- `npm test` - Run the Vitest test suite
+- `npm run lint` - Lint with ESLint
 
 ## 🔄 Deployment
 
@@ -80,13 +75,11 @@ The site automatically deploys to GitHub Pages via GitHub Actions:
 
 - **Trigger**: Push to `main`, daily at midnight UTC, or manual dispatch
 - **Build**: Fetches fresh package data, computes compatibility, builds SPA
-- **Deploy**: Pushes to `gh-pages` branch
+- **Deploy**: Uploads `./dist` as a Pages artifact via `actions/upload-pages-artifact` + `actions/deploy-pages` — no `gh-pages` branch
 
 ### GitHub Actions Workflow
 
 See [.github/workflows/build-deploy.yml](.github/workflows/build-deploy.yml)
-
-The workflow uses the built-in `GITHUB_TOKEN` for API requests (5,000 req/hour limit).
 
 ## 📊 Data Model
 
@@ -136,14 +129,14 @@ See [src/constants/repos.ts](src/constants/repos.ts) for the full list:
 
 - **Core**: geostyler-style, geostyler-data
 - **UI**: geostyler, geostyler-legend
-- **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX, GeoCss, SymCore, Masterportal
+- **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX, CQL
 - **Data Parsers**: GeoJSON, WFS, Shapefile
 
 ## 🛠️ Tech Stack
 
 - **Build**: Vite, TypeScript
-- **Frontend**: React 18, TanStack Router, TanStack Query
-- **Data Processing**: Node.js, npm registry API, GitHub API
+- **Frontend**: React 18, TanStack Router, Ant Design v6
+- **Data Processing**: Node.js, npm registry API
 - **Deployment**: GitHub Actions, GitHub Pages
 
 ## 📝 License

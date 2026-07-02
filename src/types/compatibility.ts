@@ -13,10 +13,7 @@ export type StyleFormat =
   | 'QGIS 3.22'
   | 'QGIS 3.28+'
   | 'OpenLayers'
-  | 'LYRX'
-  | 'GeoCss'
-  | 'SymCore'
-  | 'Masterportal';
+  | 'LYRX';
 
 export type DataFormat =
   | 'GeoJSON'

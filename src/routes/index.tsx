@@ -3,6 +3,7 @@ import { usePackages, useCompatibilityMatrix } from '@/api/queries';
 import type { Package, PackageCategory } from '@/types/compatibility';
 import { useState } from 'react';
 import { Card, Table, Select, Space, Statistic, Row, Col, Spin, Tag, Button } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { GithubOutlined, LinkOutlined } from '@ant-design/icons';
 
 export const Route = createFileRoute('/')({
@@ -130,18 +131,12 @@ function Dashboard() {
 }
 
 function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: string }) {
-  const columns = [
+  const columns: ColumnsType<Package> = [
     {
       title: 'Package',
       dataIndex: 'name',
       key: 'name',
       render: (text: string) => <Link to="/package/$name" params={{ name: text }}>{text}</Link>,
-    },
-    {
-      title: 'Format',
-      dataIndex: 'format',
-      key: 'format',
-      render: (format: string | undefined) => format ? <Tag>{format}</Tag> : '—',
     },
     {
       title: 'Latest Version',
@@ -193,6 +188,18 @@ function PackageList({ packages, esmFilter }: { packages: Package[]; esmFilter: 
       ),
     },
   ];
+
+  // Only show the Format column for sections where at least one package
+  // actually has a format (e.g. Style/Data Parsers) — Core and UI packages
+  // never have one, so the column would otherwise always render '—'.
+  if (packages.some((p) => p.format)) {
+    columns.splice(1, 0, {
+      title: 'Format',
+      dataIndex: 'format',
+      key: 'format',
+      render: (format: string | undefined) => (format ? <Tag>{format}</Tag> : '—'),
+    });
+  }
 
   const filteredData = packages.filter(pkg => {
     const latestVersionData = pkg.versions.find(v => v.version === pkg.latestVersion);

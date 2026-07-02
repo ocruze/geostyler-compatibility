@@ -13,9 +13,6 @@ export const REPOS = [
   'geostyler/geostyler-qgis-parser',
   'geostyler/geostyler-openlayers-parser',
   'geostyler/geostyler-lyrx-parser',
-  'geostyler/geostyler-geocss-parser',
-  'geostyler/geostyler-symcore-parser',
-  'geostyler/geostyler-masterportal-parser',
   // data parsers
   'geostyler/geostyler-data',
   'geostyler/geostyler-geojson-parser',
