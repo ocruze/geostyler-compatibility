@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect } from 'react';
-import { Card, Collapse, Space, Table, Alert, Badge, Divider } from 'antd';
+import { Card, Collapse, Flex, Table, Alert, Badge, Divider, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 
 export const Route = createFileRoute('/docs')({
@@ -17,10 +17,10 @@ function Docs() {
       key: 'categories',
       label: '📦 Package Categories',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Flex vertical gap="middle">
           <p>All GeoStyler packages fall into one of four categories:</p>
 
-          <div style={{ marginTop: '1rem' }}>
+          <div>
             <h4>🔗 Core Packages</h4>
             <p>
               Core data structures that all other packages depend on. These define the standard format for styles and data.
@@ -40,7 +40,7 @@ function Docs() {
             <Alert 
               title="All style/data parsers depend on these core packages within specific version ranges"
               type="info"
-              style={{ marginTop: '1rem' }}
+             
             />
           </div>
 
@@ -54,7 +54,7 @@ function Docs() {
               description="When combining style parsers, they must share compatible geostyler-style versions"
               type="info"
             />
-            <p style={{ marginTop: '1rem' }}>
+            <p>
               <strong>Examples:</strong> geostyler-sld-parser, geostyler-mapbox-parser, geostyler-qgis-parser, geostyler-openlayers-parser, geostyler-cql-parser
             </p>
           </div>
@@ -69,7 +69,7 @@ function Docs() {
               description="Data parsers are less tightly coupled than style parsers - each has independent geostyler-data dependency"
               type="info"
             />
-            <p style={{ marginTop: '1rem' }}>
+            <p>
               <strong>Examples:</strong> geostyler-geojson-parser, geostyler-wfs-parser, geostyler-shapefile-parser, geostyler-cql-parser
             </p>
           </div>
@@ -83,17 +83,17 @@ function Docs() {
               <strong>Examples:</strong> geostyler (main UI components), geostyler-legend (legend display)
             </p>
           </div>
-        </Space>
+        </Flex>
       ),
     },
     {
       key: 'compatibility',
       label: '🔄 How Compatibility is Determined',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Flex vertical gap="middle">
           <p>Package compatibility depends on several factors:</p>
 
-          <div style={{ marginTop: '1rem' }}>
+          <div>
             <h4>1. geostyler-style Version Intersection</h4>
             <p>
               The primary factor for style parser compatibility. Each style parser specifies which versions of geostyler-style it supports.
@@ -102,7 +102,7 @@ function Docs() {
               title="When combining multiple style parsers, they must have overlapping geostyler-style ranges"
               type="warning"
               showIcon
-              style={{ marginBottom: '1rem' }}
+             
             />
             <p>
               <strong>Example:</strong>
@@ -119,7 +119,7 @@ function Docs() {
               pagination={false}
               size="small"
             />
-            <p style={{ marginTop: '1rem' }}>
+            <p>
               ✓ <strong>Compatible:</strong> Both require ^11.0.0, so the shared range is ^11.0.0
             </p>
 
@@ -134,9 +134,9 @@ function Docs() {
               ]}
               pagination={false}
               size="small"
-              style={{ marginTop: '1rem' }}
+             
             />
-            <p style={{ marginTop: '1rem' }}>
+            <p>
               ✗ <strong>Incompatible:</strong> ^10.5.0 ∩ ^10.3.0 = ∅ (no overlapping versions)
             </p>
           </div>
@@ -154,7 +154,7 @@ function Docs() {
               type="warning"
               showIcon
             />
-            <p style={{ marginTop: '1rem' }}>
+            <p>
               <strong>Example Versions:</strong>
             </p>
             <Table
@@ -164,7 +164,7 @@ function Docs() {
                   title: 'Module System', 
                   dataIndex: 'esm', 
                   key: 'esm', 
-                  render: (esm: boolean) => <Badge color={esm ? '#52c41a' : '#096dd9'} text={esm ? 'ESM' : 'CJS'} />
+                  render: (esm: boolean) => <Badge color={esm ? 'green' : 'blue'} text={esm ? 'ESM' : 'CJS'} />
                 },
               ]}
               dataSource={[
@@ -189,15 +189,15 @@ function Docs() {
               showIcon
             />
           </div>
-        </Space>
+        </Flex>
       ),
     },
     {
       key: 'how-to-compare',
       label: '🔍 How to Use the Compare Tool',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
-          <ol style={{ lineHeight: '1.8' }}>
+        <Flex vertical gap="middle">
+          <ol>
             <li>
               <strong>Select packages</strong>
               <p>Go to the Compare page and add 2 or more packages using the package selector.</p>
@@ -234,15 +234,15 @@ function Docs() {
               </p>
             </li>
           </ol>
-        </Space>
+        </Flex>
       ),
     },
     {
       key: 'how-to-dashboard',
-      label: '📊 Dashboard Overview',
+      label: '📊 Overview Page',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
-          <p>The Dashboard gives you an overview of all available packages.</p>
+        <Flex vertical gap="middle">
+          <p>The Overview page lists all available packages.</p>
 
           <div>
             <h4>Package Statistics</h4>
@@ -279,14 +279,14 @@ function Docs() {
               <li>Links to npm, GitHub, and changelog</li>
             </ul>
           </div>
-        </Space>
+        </Flex>
       ),
     },
     {
       key: 'faq',
       label: '❓ Frequently Asked Questions',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Flex vertical gap="middle">
           <div>
             <h4>Q: Why can't I use these two packages together?</h4>
             <p>
@@ -337,7 +337,7 @@ function Docs() {
           <div>
             <h4>Q: Can I see version history for a package?</h4>
             <p>
-              <strong>A:</strong> Yes! Go to the package detail page (click a package name from the Dashboard) to see all versions with publication dates, dependencies, and other metadata.
+              <strong>A:</strong> Yes! Go to the package detail page (click a package name from the Overview page) to see all versions with publication dates, dependencies, and other metadata.
             </p>
           </div>
 
@@ -349,14 +349,14 @@ function Docs() {
               <strong>A:</strong> The package metadata is automatically refreshed daily from the npm registry and GitHub API. You can also check GitHub Actions for the latest build status.
             </p>
           </div>
-        </Space>
+        </Flex>
       ),
     },
     {
       key: 'technical-details',
       label: '⚙️ Technical Details',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Flex vertical gap="middle">
           <div>
             <h4>Data Sources</h4>
             <ul>
@@ -397,28 +397,26 @@ function Docs() {
               Built with React, TypeScript, Ant Design, and TanStack Router to help developers navigate the GeoStyler package ecosystem and find compatible version combinations.
             </p>
           </div>
-        </Space>
+        </Flex>
       ),
     },
   ];
 
   return (
-    <div>
-      <Card 
+    <Flex vertical gap="large">
+      <Card
         title={
           <span>
-            <FileTextOutlined style={{ marginRight: '0.5rem' }} />
-            Documentation
+            <FileTextOutlined aria-hidden="true" /> Documentation
           </span>
         }
-        style={{ marginBottom: '2rem' }}
       >
-        <p style={{ marginBottom: '1.5rem', fontSize: '16px' }}>
+        <Typography.Paragraph>
           Welcome to the GeoStyler Compatibility Checker documentation. Use the sections below to understand how packages are organized, how compatibility is determined, and how to use this tool effectively.
-        </p>
+        </Typography.Paragraph>
       </Card>
 
       <Collapse items={docItems} />
-    </div>
+    </Flex>
   );
 }
