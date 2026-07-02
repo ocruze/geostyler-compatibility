@@ -1,0 +1,122 @@
+/* Static shell & utility styles. Dynamic, state-dependent styling stays in
+   components and is derived from antd theme tokens (theme.useToken()). */
+
+:root {
+  color-scheme: light;
+}
+
+/* --- App shell ------------------------------------------------------- */
+
+.app-layout {
+  min-height: 100vh;
+}
+
+.app-header {
+  background: #fff;
+  padding: 0 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 64px;
+  column-gap: 16px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-nav ul {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 62px;
+  color: rgba(0, 0, 0, 0.88);
+  border-bottom: 2px solid transparent;
+}
+
+.app-nav a:hover {
+  color: #1677ff;
+}
+
+.app-nav a[aria-current='page'] {
+  color: #1677ff;
+  border-bottom-color: #1677ff;
+}
+
+.app-content {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* --- Accessibility ---------------------------------------------------- */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  background: #fff;
+  color: #1677ff;
+  padding: 8px 16px;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* --- Utilities -------------------------------------------------------- */
+
+.centered-spin {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Fixed-width selects become fluid on small screens (mobile overflow fix). */
+.filter-select {
+  min-width: 150px;
+  max-width: 100%;
+}
+
+/* Links nested in colored tags inherit the tag's color for contrast. */
+.tag-link {
+  color: inherit;
+}
+
+/* Compact code labels in matrix column headers. */
+.cell-code {
+  font-size: 12px;
+}
+
+.package-select {
+  min-width: 300px;
+}
+
+@media (max-width: 575px) {
+  .package-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filter-row,
+  .package-select-row {
+    width: 100%;
+  }
+}

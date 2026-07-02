@@ -2,8 +2,10 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { usePackage } from '@/api/queries';
 import type { PackageVersion } from '@/types/compatibility';
 import { useEffect, useState } from 'react';
-import { Card, Table, Select, Space, Tag, Button, Spin, Tabs } from 'antd';
+import { Card, Table, Select, Space, Tag, Button, Spin, Tabs, Flex, Typography, Alert, Result } from 'antd';
 import { ArrowLeftOutlined, GithubOutlined, LinkOutlined } from '@ant-design/icons';
+
+const { Text, Title } = Typography;
 
 export const Route = createFileRoute('/package/$name')({
   component: PackageDetail,
@@ -19,85 +21,103 @@ function PackageDetail() {
   }, [pkg]);
 
   if (isLoading) {
-    return <Spin size="large" style={{ display: 'flex', justifyContent: 'center', minHeight: '400px' }} />;
+    return <Spin size="large" className="centered-spin" />;
   }
   if (error) {
     return (
-      <Card title="Error Loading Package">
-        <p style={{ color: '#ff4d4f' }}>{error instanceof Error ? error.message : 'Unknown error'}</p>
-      </Card>
+      <Alert
+        type="error"
+        showIcon
+        title="Error Loading Package"
+        description={error instanceof Error ? error.message : 'Unknown error'}
+      />
     );
   }
 
   if (!pkg) {
     return (
-      <Card>
-        <p>Package "{name}" not found in the compatibility database.</p>
-        <Link to="/">← Back to Dashboard</Link>
-      </Card>
+      <Result
+        status="404"
+        title="Package Not Found"
+        subTitle={`Package “${name}” is not in the compatibility database.`}
+        extra={
+          <Link to="/overview">
+            <Button type="primary">Back to Overview</Button>
+          </Link>
+        }
+      />
     );
   }
 
-  const currentVersion = selectedVersion 
+  const currentVersion = selectedVersion
     ? pkg.versions.find(v => v.version === selectedVersion)
     : pkg.versions.find(v => v.version === pkg.latestVersion);
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap="large">
       {/* Back Link */}
-      <Link to="/">
+      <Link to="/overview">
         <Button type="text" icon={<ArrowLeftOutlined />}>
-          Back to Dashboard
+          Back to Overview
         </Button>
       </Link>
 
       {/* Header */}
       <Card>
-        <h2>{pkg.name}</h2>
-        <Space style={{ marginTop: '1rem', flexWrap: 'wrap' }}>
-          <Tag color={currentVersion?.esmSupport ? 'green' : 'cyan'}>
-            {currentVersion?.esmSupport ? 'ESM' : 'CJS'}
-          </Tag>
-          {pkg.format && <Tag>{pkg.format}</Tag>}
-          <Tag color="blue">{pkg.category}</Tag>
-        </Space>
-        <Space style={{ marginTop: '1rem' }}>
-          <Button
-            type="primary"
-            icon={<GithubOutlined />}
-            href={pkg.repositoryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub Repository
-          </Button>
-          <Button
-            icon={<LinkOutlined />}
-            href={`https://www.npmjs.com/package/${pkg.name}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            npm Package
-          </Button>
-        </Space>
+        <Flex vertical gap="middle" align="flex-start">
+          <Title level={2} style={{ margin: 0 }}>{pkg.name}</Title>
+          <Space wrap>
+            <Tag color={currentVersion?.esmSupport ? 'green' : 'cyan'}>
+              {currentVersion?.esmSupport ? 'ESM' : 'CJS'}
+            </Tag>
+            {pkg.format && <Tag>{pkg.format}</Tag>}
+            <Tag color="blue">{pkg.category}</Tag>
+          </Space>
+          <Space wrap>
+            <Button
+              type="primary"
+              icon={<GithubOutlined />}
+              href={pkg.repositoryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Repository
+            </Button>
+            <Button
+              icon={<LinkOutlined />}
+              href={`https://www.npmjs.com/package/${pkg.name}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              npm Package
+            </Button>
+          </Space>
+        </Flex>
       </Card>
 
       {/* Version Selector */}
       <Card title="Version Details">
-        <Space style={{ marginBottom: '1rem', display: 'flex' }}>
-          <label style={{ fontWeight: 500 }}>Select Version:</label>
-          <Select
-            value={selectedVersion || pkg.latestVersion}
-            onChange={setSelectedVersion}
-            style={{ minWidth: 200 }}
-            options={pkg.versions.map(v => ({
-              label: `${v.version}${v.version === pkg.latestVersion ? ' (latest)' : ''}${v.isPrerelease ? ' (prerelease)' : ''}`,
-              value: v.version,
-            }))}
-          />
-        </Space>
+        <Flex vertical gap="small">
+          <Flex gap="small" align="center" wrap>
+            <label htmlFor="version-select">
+              <Text strong>Select Version:</Text>
+            </label>
+            <Select
+              id="version-select"
+              value={selectedVersion || pkg.latestVersion}
+              onChange={setSelectedVersion}
+              className="filter-select"
+              popupMatchSelectWidth={false}
+              showSearch={{ optionFilterProp: 'label' }}
+              options={pkg.versions.map(v => ({
+                label: `${v.version}${v.version === pkg.latestVersion ? ' (latest)' : ''}${v.isPrerelease ? ' (prerelease)' : ''}`,
+                value: v.version,
+              }))}
+            />
+          </Flex>
 
-        {currentVersion && <VersionDetails version={currentVersion} />}
+          {currentVersion && <VersionDetails version={currentVersion} />}
+        </Flex>
       </Card>
 
       {/* All Versions */}
@@ -105,9 +125,11 @@ function PackageDetail() {
         <VersionHistoryTable
           versions={pkg.versions}
           latestVersion={pkg.latestVersion}
+          selectedVersion={selectedVersion || pkg.latestVersion}
+          onSelectVersion={setSelectedVersion}
         />
       </Card>
-    </Space>
+    </Flex>
   );
 }
 
@@ -120,23 +142,25 @@ function VersionDetails({ version }: { version: PackageVersion }) {
       key: 'info',
       label: 'Info',
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Flex vertical gap="small">
           <div>
-            <strong>Version:</strong> {version.version}
+            <Text strong>Version:</Text> {version.version}
           </div>
           <div>
-            <strong>Published:</strong> {new Date(version.publishDate).toLocaleDateString()}
+            <Text strong>Published:</Text> {new Date(version.publishDate).toLocaleDateString()}
           </div>
           <div>
-            <strong>Module System:</strong>{' '}
+            <Text strong>Module System:</Text>{' '}
             <Tag color={version.esmSupport ? 'green' : 'cyan'}>
               {version.esmSupport ? 'ESM' : 'CJS'}
             </Tag>
           </div>
-          <div>
-            <strong>Format:</strong> {version.format || '—'}
-          </div>
-        </Space>
+          {version.format && (
+            <div>
+              <Text strong>Format:</Text> {version.format}
+            </div>
+          )}
+        </Flex>
       ),
     },
   ];
@@ -162,17 +186,21 @@ function VersionDetails({ version }: { version: PackageVersion }) {
       key: 'geostyler',
       label: 'geostyler-style',
       children: (
-        <div style={{ padding: '1rem', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
-          <strong>geostyler-style Compatibility:</strong>
-          <div style={{ marginTop: '0.5rem', fontSize: '1.1rem' }}>
-            <code>{version.geostylerStyleRange}</code>
-          </div>
-          <div style={{ marginTop: '1rem' }}>
-            <a href={version.changelogUrl} target="_blank" rel="noopener noreferrer">
-              View Changelog →
-            </a>
-          </div>
-        </div>
+        <Alert
+          type="info"
+          title={
+            <>
+              geostyler-style Compatibility: <code>{version.geostylerStyleRange}</code>
+            </>
+          }
+          description={
+            version.changelogUrl && (
+              <a href={version.changelogUrl} target="_blank" rel="noopener noreferrer">
+                View Changelog →
+              </a>
+            )
+          }
+        />
       ),
     });
   }
@@ -202,15 +230,26 @@ function DependencyTable({ deps }: { deps: Record<string, string> }) {
     },
   ];
 
-  return <Table columns={columns} dataSource={data} pagination={false} />;
+  return (
+    <Table
+      columns={columns}
+      dataSource={data}
+      pagination={false}
+      scroll={{ x: 'max-content' }}
+    />
+  );
 }
 
 function VersionHistoryTable({
   versions,
   latestVersion,
+  selectedVersion,
+  onSelectVersion,
 }: {
   versions: PackageVersion[];
   latestVersion: string;
+  selectedVersion: string;
+  onSelectVersion: (version: string) => void;
 }) {
   const columns = [
     {
@@ -240,14 +279,6 @@ function VersionHistoryTable({
       ),
     },
     {
-      title: 'geostyler-style',
-      dataIndex: 'geostylerStyleRange',
-      key: 'geostylerStyleRange',
-      render: (range: string | undefined) => (
-        <code style={{ fontSize: '0.875rem' }}>{range || '—'}</code>
-      ),
-    },
-    {
       title: 'Status',
       key: 'status',
       render: (_: unknown, record: PackageVersion) =>
@@ -255,12 +286,33 @@ function VersionHistoryTable({
     },
   ];
 
+  // Core packages have no geostyler-style range of their own; showing the
+  // column there would render a wall of '—'.
+  if (versions.some((v) => v.geostylerStyleRange)) {
+    columns.splice(3, 0, {
+      title: 'geostyler-style',
+      key: 'geostylerStyleRange',
+      render: (_: unknown, record: PackageVersion) => (
+        <code>{record.geostylerStyleRange || '—'}</code>
+      ),
+    });
+  }
+
   return (
-    <Table
-      columns={columns}
-      dataSource={versions}
-      rowKey="version"
-      pagination={{ pageSize: 20 }}
-    />
+    <Flex vertical gap="small">
+      <Text type="secondary">Click a row to inspect that version above.</Text>
+      <Table
+        columns={columns}
+        dataSource={versions}
+        rowKey="version"
+        pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        scroll={{ x: 'max-content' }}
+        rowClassName={(record) => (record.version === selectedVersion ? 'ant-table-row-selected' : '')}
+        onRow={(record) => ({
+          onClick: () => onSelectVersion(record.version),
+          style: { cursor: 'pointer' },
+        })}
+      />
+    </Flex>
   );
 }

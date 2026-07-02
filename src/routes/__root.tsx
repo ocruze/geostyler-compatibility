@@ -1,8 +1,14 @@
 import { createRootRoute, Link, Outlet, useLocation } from '@tanstack/react-router';
-import { Layout, Menu } from 'antd';
-import { DatabaseOutlined, SwapOutlined, FileTextOutlined, MenuOutlined } from '@ant-design/icons';
+import { Layout } from 'antd';
+import { DatabaseOutlined, SwapOutlined, FileTextOutlined } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
+
+const NAV_ITEMS = [
+  { path: '/overview', icon: <DatabaseOutlined aria-hidden="true" />, label: 'Overview' },
+  { path: '/compare', icon: <SwapOutlined aria-hidden="true" />, label: 'Compare' },
+  { path: '/docs', icon: <FileTextOutlined aria-hidden="true" />, label: 'Docs' },
+];
 
 export const Route = createRootRoute({
   // This anonymous arrow function is the route's React component (per
@@ -14,48 +20,36 @@ export const Route = createRootRoute({
     const location = useLocation();
     const currentPath = location.pathname;
 
-    const menuItems = [
-      {
-        key: '/',
-        icon: <DatabaseOutlined />,
-        label: <Link to="/">Dashboard</Link>,
-      },
-      {
-        key: '/compare',
-        icon: <SwapOutlined />,
-        label: <Link to="/compare">Compare</Link>,
-      },
-      {
-        key: '/docs',
-        icon: <FileTextOutlined />,
-        label: <Link to="/docs">Docs</Link>,
-      },
-    ];
-
     return (
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header
-          style={{
-            background: '#fff',
-            padding: '0 24px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            GeoStyler Compatibility Dashboard
-          </h1>
-          <Menu
-            mode="horizontal"
-            selectedKeys={[menuItems.find((m) => currentPath === m.key || (m.key !== '/' && currentPath.startsWith(m.key)))?.key ?? '']}
-            items={menuItems}
-            style={{ border: 'none', justifyContent: 'flex-end', flex: '0 1 auto', minWidth: 0 }}
-            overflowedIndicator={<MenuOutlined />}
-          />
+      <Layout className="app-layout">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+        <Header className="app-header">
+          <h1 className="app-title">GeoStyler Compatibility</h1>
+          {/*
+            Plain nav links instead of antd's horizontal <Menu>: Menu's
+            responsive overflow measurement can race on first render and
+            collapse every item into the "..." indicator, leaving the page
+            with no visible navigation.
+          */}
+          <nav aria-label="Main" className="app-nav">
+            <ul>
+              {NAV_ITEMS.map(({ path, icon, label }) => (
+                <li key={path}>
+                  <Link
+                    to={path}
+                    aria-current={currentPath.startsWith(path) ? 'page' : undefined}
+                  >
+                    {icon}
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </Header>
-        <Content style={{ padding: '24px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+        <Content id="main-content" className="app-content">
           <Outlet />
         </Content>
       </Layout>
