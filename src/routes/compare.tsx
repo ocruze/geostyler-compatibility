@@ -3,14 +3,42 @@ import {
   usePackages,
   useCompatibilityCheck,
   getVersionCompatibilityMatrix,
+  checkVersionCompatibility,
+  findRecommendedSet,
   type VersionCompatibilityMatrixData,
   type VersionCompatibilityResult,
 } from '@/api/queries';
 import { useEffect, useState } from 'react';
-import { intersectRanges } from '@/utils/semver';
+import { intersectRanges, formatRangeForDisplay } from '@/utils/semver';
 import type { Package, PackageVersion } from '@/types/compatibility';
-import { Card, Select, Space, Tag, Table, Alert, Empty, Tooltip, Badge, Modal, Collapse, Button, Switch, Result } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
+import {
+  App,
+  Card,
+  Select,
+  Space,
+  Tag,
+  Table,
+  Alert,
+  Empty,
+  Tooltip,
+  Badge,
+  Modal,
+  Collapse,
+  Button,
+  Switch,
+  Result,
+  Flex,
+  Typography,
+  theme,
+} from 'antd';
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  CopyOutlined,
+} from '@ant-design/icons';
+
+const { Text, Title } = Typography;
 
 type CompareSearch = {
   packages?: string;
@@ -25,14 +53,27 @@ export const Route = createFileRoute('/compare')({
   },
 });
 
+/** One entry per id in ?packages=, resolved against the dataset. */
+interface SelectedEntry {
+  id: string;
+  name: string;
+  version: string;
+  data: PackageVersion | undefined;
+}
+
+function parsePackageId(id: string): { name: string; version: string } {
+  const lastAtIndex = id.lastIndexOf('@');
+  return { name: id.slice(0, lastAtIndex), version: id.slice(lastAtIndex + 1) };
+}
+
 function Compare() {
   const searchParams = Route.useSearch() as CompareSearch;
   const navigate = useNavigate({ from: Route.fullPath });
   const { data: allPackages, isLoading } = usePackages();
 
-  const [selectedPackages, setSelectedPackages] = useState<string[]>(
-    searchParams.packages ? searchParams.packages.split(',') : []
-  );
+  // Selection lives in the URL (single source of truth): back/forward and
+  // shared links always reflect exactly what is shown.
+  const selectedPackages = searchParams.packages ? searchParams.packages.split(',') : [];
 
   useEffect(() => {
     document.title = 'Compare · GeoStyler Compatibility';
@@ -46,266 +87,507 @@ function Compare() {
     return <Card>No packages available</Card>;
   }
 
+  const setSelection = (ids: string[]) => {
+    navigate({
+      search: (ids.length > 0 ? { packages: ids.join(',') } : {}) satisfies CompareSearch,
+    });
+  };
+
   const handleAddPackage = (packageId: string) => {
     if (!selectedPackages.includes(packageId)) {
-      const updated = [...selectedPackages, packageId];
-      setSelectedPackages(updated);
-      navigate({
-        search: { packages: updated.join(',') } satisfies CompareSearch,
-      });
+      setSelection([...selectedPackages, packageId]);
     }
   };
 
   const handleRemovePackage = (packageId: string) => {
-    const updated = selectedPackages.filter(p => p !== packageId);
-    setSelectedPackages(updated);
-    navigate({
-      search: (updated.length > 0 ? { packages: updated.join(',') } : {}) satisfies CompareSearch,
-    });
+    setSelection(selectedPackages.filter((p) => p !== packageId));
   };
 
+  // Resolve every selected id against the dataset; ids may go stale when a
+  // package/version leaves the tracked set, and shared URLs can contain typos.
+  const entries: SelectedEntry[] = selectedPackages.map((id) => {
+    const { name, version } = parsePackageId(id);
+    const pkg = allPackages.find((p) => p.name === name);
+    const data = pkg?.versions.find((v) => v.version === version);
+    return { id, name, version, data };
+  });
+  const knownEntries = entries.filter((e) => e.data);
+  const unknownEntries = entries.filter((e) => !e.data);
+
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap="large">
       <Card title="Compare Package Compatibility">
-        <p style={{ marginBottom: '1rem' }}>
-          Select packages to check their compatibility with each other.
-        </p>
+        <Flex vertical gap="middle">
+          <Text>Select packages to check their compatibility with each other.</Text>
 
-        {/* Package Selector */}
-        <Space style={{ marginBottom: '1.5rem', display: 'flex' }}>
-          <label style={{ fontWeight: 500 }}>Add Package:</label>
-          <Select
-            placeholder="Select a package..."
-            onSelect={(value) => {
-              if (value) {
-                handleAddPackage(value);
-              }
-            }}
-            style={{ minWidth: 300 }}
-            allowClear
-            options={allPackages.map(pkg => {
-              const latestVersion = `${pkg.name}@${pkg.latestVersion}`;
-              const isSelected = selectedPackages.includes(latestVersion);
-              return {
-                label: `${pkg.name} @${pkg.latestVersion} ${pkg.format ? `(${pkg.format})` : ''}`,
-                value: latestVersion,
-                disabled: isSelected,
-              };
-            })}
-          />
-          <Button icon={<CloseCircleOutlined />} onClick={()=>setSelectedPackages([])} aria-label="Clear selected packages" />
-        </Space>
-
-        {/* Selected Packages */}
-        {selectedPackages.length > 0 && (
-          <div>
-            <p style={{ marginBottom: '0.5rem', fontWeight: 500 }}>Selected Packages:</p>
-            <Space wrap>
-              {selectedPackages.map(pkgId => {
-                const [name] = pkgId.split('@').slice(0, -1);
-                return (
-                  <Tag
-                    key={pkgId}
-                    closable
-                    onClose={() => handleRemovePackage(pkgId)}
-                    color="blue"
-                  >
-                    <Link to="/package/$name" params={{ name }} style={{ color: 'inherit' }}>
-                      {pkgId}
-                    </Link>
-                  </Tag>
-                );
+          {/* Package Selector */}
+          <Flex gap="small" align="center" wrap className="package-select-row">
+            <label htmlFor="compare-package-select">
+              <Text strong>Add Package:</Text>
+            </label>
+            <Select
+              id="compare-package-select"
+              placeholder="Select a package…"
+              onSelect={(value) => {
+                if (value) {
+                  handleAddPackage(value);
+                }
+              }}
+              className="package-select"
+              popupMatchSelectWidth={false}
+              showSearch={{ optionFilterProp: 'label' }}
+              options={allPackages.map((pkg) => {
+                const latestVersion = `${pkg.name}@${pkg.latestVersion}`;
+                const isSelected = selectedPackages.includes(latestVersion);
+                return {
+                  label: `${pkg.name}@${pkg.latestVersion}${pkg.format ? ` (${pkg.format})` : ''}`,
+                  value: latestVersion,
+                  disabled: isSelected,
+                };
               })}
-            </Space>
-          </div>
-        )}
+            />
+            {selectedPackages.length > 0 && (
+              <Button icon={<CloseCircleOutlined />} onClick={() => setSelection([])}>
+                Clear All
+              </Button>
+            )}
+          </Flex>
+
+          {/* Selected Packages */}
+          {entries.length > 0 && (
+            <Flex vertical gap="small" align="flex-start">
+              <Text strong>Selected Packages:</Text>
+              <div>
+                <Space wrap>
+                  {entries.map((entry) => (
+                    <Tag
+                      key={entry.id}
+                      closable
+                      onClose={() => handleRemovePackage(entry.id)}
+                      color={entry.data ? 'blue' : 'red'}
+                    >
+                      {entry.data ? (
+                        <Link to="/package/$name" params={{ name: entry.name }} className="tag-link">
+                          {entry.id}
+                        </Link>
+                      ) : (
+                        <Tooltip title="Not found in the compatibility database">
+                          {entry.id} (not found)
+                        </Tooltip>
+                      )}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            </Flex>
+          )}
+        </Flex>
       </Card>
 
-      {/* Compatibility Results */}
-      {selectedPackages.length >= 2 && (
-        <CompatibilityResults packageIds={selectedPackages} allPackages={allPackages} />
+      {/* Unknown-package warning: never let a stale link produce a silent verdict */}
+      {unknownEntries.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          title={`${unknownEntries.length} of ${entries.length} selected ${entries.length === 1 ? 'package' : 'packages'} couldn't be found`}
+          description={`Not in the compatibility database: ${unknownEntries.map((e) => e.id).join(', ')}. ${
+            knownEntries.length >= 2
+              ? 'The analysis below covers only the packages that were found.'
+              : 'Select at least 2 known packages to see a compatibility analysis.'
+          }`}
+        />
       )}
 
-      {selectedPackages.length < 2 && (
+      {/* Compatibility Results */}
+      {knownEntries.length >= 2 && (
+        <CompatibilityResults entries={knownEntries} allPackages={allPackages} />
+      )}
+
+      {knownEntries.length < 2 && unknownEntries.length === 0 && (
         <Card>
-          <Empty 
-            description="Select at least 2 packages to see compatibility analysis"
-          />
+          <Empty description="Select at least 2 packages to see compatibility analysis" />
         </Card>
       )}
-    </Space>
+    </Flex>
   );
 }
 
 function CompatibilityResults({
-  packageIds,
-  allPackages
+  entries,
+  allPackages,
 }: {
-  packageIds: string[];
+  entries: SelectedEntry[];
   allPackages: Package[];
 }) {
+  const packageIds = entries.map((e) => e.id);
   const { data: check } = useCompatibilityCheck(packageIds);
   const [selectedCell, setSelectedCell] = useState<{ v1: string; v2: string } | null>(null);
 
-  // Get version compatibility matrix
+  // Get version compatibility matrix (pairs only)
   const matrixData = getVersionCompatibilityMatrix(packageIds, allPackages);
 
-  // Parse package IDs to get version info
-  const packageVersions = packageIds.map(id => {
-    const lastAtIndex = id.lastIndexOf('@');
-    const name = id.slice(0, lastAtIndex);
-    const version = id.slice(lastAtIndex + 1);
-    const pkg = allPackages.find(p => p.name === name);
-    const versionData = pkg?.versions.find((v: PackageVersion) => v.version === version);
-    return { name, version, data: versionData };
-  }).filter(p => p.data);
+  const packageVersions = entries as (SelectedEntry & { data: PackageVersion })[];
 
   // Compute geostyler-style intersection
   const geostylerStyleRanges = packageVersions
-    .map(p => p.data?.geostylerStyleRange)
+    .map((p) => p.data.geostylerStyleRange)
     .filter((r): r is string => !!r);
-  
-  const sharedRange = geostylerStyleRanges.length > 0 
+
+  const sharedRange = geostylerStyleRanges.length > 0
     ? intersectRanges(geostylerStyleRanges)
     : null;
 
   // Check ESM compatibility
-  const esmSupport = packageVersions.map(p => p.data?.esmSupport);
-  const mixedESM = esmSupport.some(e => e === true) && esmSupport.some(e => e === false);
+  const esmSupport = packageVersions.map((p) => p.data.esmSupport);
+  const mixedESM = esmSupport.some((e) => e === true) && esmSupport.some((e) => e === false);
 
-  const hasErrors = !sharedRange || mixedESM;
+  const hasErrors = (geostylerStyleRanges.length > 0 && !sharedRange) || mixedESM;
+  const selectedLabel = packageVersions.map((p) => p.id).join(' + ');
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Flex vertical gap="large">
       <Card title="Compatibility Analysis">
-        {/* Overall Status */}
-        <Alert
-          title={hasErrors ? '✗ Incompatible' : '✓ Compatible'}
-          description={
-            hasErrors 
-              ? 'These packages have compatibility conflicts'
-              : 'These packages can be used together'
-          }
-          type={hasErrors ? 'error' : 'success'}
-          showIcon
-          style={{ marginBottom: '1.5rem' }}
-        />
-
-        {/* geostyler-style Compatibility */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h4 style={{ marginBottom: '1rem' }}>geostyler-style Compatibility</h4>
-          <Table
-            columns={[
-              {
-                title: 'Package',
-                dataIndex: 'name',
-                key: 'name',
-                render: (name: string) => <code>{name}</code>,
-              },
-              {
-                title: 'Required geostyler-style',
-                dataIndex: 'range',
-                key: 'range',
-                render: (range: string) => <code>{range}</code>,
-              },
-            ]}
-            dataSource={packageVersions.map(p => ({
-              key: p.name,
-              name: `${p.name}@${p.version}`,
-              range: p.data?.geostylerStyleRange || '—',
-            }))}
-            pagination={false}
-          />
-          
+        <Flex vertical gap="large">
+          {/* Overall Status — scoped to the versions actually selected */}
           <Alert
-            title={`Shared Range: ${sharedRange || 'No overlapping versions'}`}
-            type={sharedRange ? 'success' : 'error'}
-            style={{ marginTop: '1rem' }}
+            title={hasErrors ? 'Selected versions are incompatible' : 'Selected versions are compatible'}
+            description={
+              hasErrors
+                ? `${selectedLabel} cannot be used together. Other version combinations may be compatible — see the recommendation and matrix below.`
+                : `${selectedLabel} can be used together.`
+            }
+            type={hasErrors ? 'error' : 'success'}
             showIcon
           />
-        </div>
 
-        {/* ESM/CJS Compatibility */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h4 style={{ marginBottom: '1rem' }}>Module System</h4>
-          <Table
-            columns={[
-              {
-                title: 'Package',
-                dataIndex: 'name',
-                key: 'name',
-                render: (name: string) => <code>{name}</code>,
-              },
-              {
-                title: 'Module System',
-                dataIndex: 'esm',
-                key: 'esm',
-                render: (isESM: boolean) => (
-                  <Tag color={isESM ? 'green' : 'cyan'}>
-                    {isESM ? 'ESM' : 'CJS'}
-                  </Tag>
-                ),
-              },
-            ]}
-            dataSource={packageVersions.map(p => ({
-              key: p.name,
-              name: `${p.name}@${p.version}`,
-              esm: p.data?.esmSupport || false,
-            }))}
-            pagination={false}
-          />
-          
-          {mixedESM && (
+          {/* geostyler-style Compatibility */}
+          <Flex vertical gap="small">
+            <Title level={4}>geostyler-style Compatibility</Title>
+            <Table
+              columns={[
+                {
+                  title: 'Package',
+                  dataIndex: 'name',
+                  key: 'name',
+                  render: (name: string) => <code>{name}</code>,
+                },
+                {
+                  title: 'Required geostyler-style',
+                  dataIndex: 'range',
+                  key: 'range',
+                  render: (range: string) => <code>{range}</code>,
+                },
+              ]}
+              dataSource={packageVersions.map((p) => ({
+                key: p.name,
+                name: p.id,
+                range: p.data.geostylerStyleRange || '—',
+              }))}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+            />
+
             <Alert
-              title="⚠ Warning: Mixed ESM and CJS"
-              description="Mixed ESM and CJS packages may cause bundling issues"
-              type="warning"
-              style={{ marginTop: '1rem' }}
+              title={
+                sharedRange
+                  ? `Shared Range: ${formatRangeForDisplay(sharedRange)}`
+                  : 'Shared Range: No overlapping versions'
+              }
+              type={sharedRange ? 'success' : 'error'}
               showIcon
             />
+          </Flex>
+
+          {/* ESM/CJS Compatibility */}
+          <Flex vertical gap="small">
+            <Title level={4}>Module System</Title>
+            <Table
+              columns={[
+                {
+                  title: 'Package',
+                  dataIndex: 'name',
+                  key: 'name',
+                  render: (name: string) => <code>{name}</code>,
+                },
+                {
+                  title: 'Module System',
+                  dataIndex: 'esm',
+                  key: 'esm',
+                  render: (isESM: boolean) => (
+                    <Tag color={isESM ? 'green' : 'cyan'}>
+                      {isESM ? 'ESM' : 'CJS'}
+                    </Tag>
+                  ),
+                },
+              ]}
+              dataSource={packageVersions.map((p) => ({
+                key: p.name,
+                name: p.id,
+                esm: p.data.esmSupport || false,
+              }))}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+            />
+
+            {mixedESM && (
+              <Alert
+                title="Warning: Mixed ESM and CJS"
+                description="Mixed ESM and CJS packages may cause bundling issues"
+                type="warning"
+                showIcon
+              />
+            )}
+          </Flex>
+
+          {/* Conflicts from pre-computed check */}
+          {check?.conflicts && check.conflicts.length > 0 && (
+            <div>
+              <Title level={4}>Detected Conflicts</Title>
+              <Flex vertical gap="small">
+                {check.conflicts.map((conflict, idx) => (
+                  <Alert
+                    key={idx}
+                    title={conflict.reason}
+                    description={conflict.message}
+                    type={conflict.severity === 'error' ? 'error' : 'warning'}
+                    showIcon
+                  />
+                ))}
+              </Flex>
+            </div>
           )}
-        </div>
 
-        {/* Conflicts from pre-computed check */}
-        {check?.conflicts && check.conflicts.length > 0 && (
-          <div>
-            <h4 style={{ marginBottom: '1rem' }}>Detected Conflicts</h4>
-            <Space orientation="vertical" style={{ width: '100%' }}>
-              {check.conflicts.map((conflict, idx) => (
-                <Alert
-                  key={idx}
-                  title={conflict.reason}
-                  description={conflict.message}
-                  type={conflict.severity === 'error' ? 'error' : 'warning'}
-                  showIcon
-                />
-              ))}
-            </Space>
-          </div>
-        )}
-
-        {/* Recommendations */}
-        {check?.recommendations && check.recommendations.length > 0 && (
-          <div style={{ marginTop: '1.5rem' }}>
-            <h4 style={{ marginBottom: '1rem' }}>Recommendations</h4>
-            <Space orientation="vertical">
-              {check.recommendations.map((rec, idx) => (
-                <span key={idx}>• {rec}</span>
-              ))}
-            </Space>
-          </div>
-        )}
+          {/* Recommendations */}
+          {check?.recommendations && check.recommendations.length > 0 && (
+            <div>
+              <Title level={4}>Recommendations</Title>
+              <ul>
+                {check.recommendations.map((rec, idx) => (
+                  <li key={idx}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Flex>
       </Card>
 
-      {/* Version Compatibility Matrix */}
-      {matrixData && packageIds.length === 2 && (
-        <VersionCompatibilityMatrixCard 
+      {/* 3+ packages: pairwise grid + recommended set */}
+      {packageVersions.length >= 3 && (
+        <PairwiseGridCard entries={packageVersions} allPackages={allPackages} />
+      )}
+
+      {/* Exactly 2 packages: deep version-by-version matrix */}
+      {matrixData && packageVersions.length === 2 && (
+        <VersionCompatibilityMatrixCard
           matrixData={matrixData}
           selectedCell={selectedCell}
           onSelectCell={setSelectedCell}
         />
       )}
-    </Space>
+    </Flex>
+  );
+}
+
+/**
+ * Shared visual language for compatibility cells (used by both the pairwise
+ * grid and the version matrix).
+ */
+function CompatCell({
+  compat,
+  label,
+  onActivate,
+  badge,
+}: {
+  compat: VersionCompatibilityResult;
+  label: string;
+  onActivate: () => void;
+  badge?: boolean;
+}) {
+  const { token } = theme.useToken();
+
+  return (
+    <Tooltip title={compat.reason || (compat.compatible ? 'Compatible' : 'Incompatible')}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={label}
+        onClick={onActivate}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onActivate();
+          }
+        }}
+        style={{
+          backgroundColor: compat.compatible ? token.colorSuccessBg : token.colorErrorBg,
+          border: `2px solid ${compat.compatible ? token.colorSuccessBorder : token.colorErrorBorder}`,
+          borderRadius: token.borderRadiusSM,
+          padding: 4,
+          textAlign: 'center',
+          cursor: 'pointer',
+          position: 'relative',
+        }}
+      >
+        {badge && (
+          <Badge
+            count="★"
+            style={{
+              backgroundColor: token.colorWarning,
+              color: '#fff',
+              fontSize: 10,
+              position: 'absolute',
+              top: -4,
+              right: -4,
+            }}
+          />
+        )}
+        {compat.compatible ? (
+          compat.warnings.length > 0 ? (
+            <ExclamationCircleOutlined style={{ color: token.colorWarning, fontSize: 14 }} />
+          ) : (
+            <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 14 }} />
+          )
+        ) : (
+          <CloseCircleOutlined style={{ color: token.colorError, fontSize: 14 }} />
+        )}
+      </div>
+    </Tooltip>
+  );
+}
+
+/**
+ * N-package view: which pair breaks the stack, at a glance — plus the newest
+ * mutually-compatible version set with a copyable install command.
+ */
+function PairwiseGridCard({
+  entries,
+  allPackages,
+}: {
+  entries: (SelectedEntry & { data: PackageVersion })[];
+  allPackages: Package[];
+}) {
+  const navigate = useNavigate({ from: Route.fullPath });
+
+  const drillDown = (a: SelectedEntry, b: SelectedEntry) => {
+    navigate({
+      search: { packages: `${a.id},${b.id}` } satisfies CompareSearch,
+    });
+  };
+
+  const columns = [
+    {
+      title: '',
+      dataIndex: 'rowLabel',
+      key: 'rowLabel',
+      fixed: 'left' as const,
+      render: (label: string) => <code>{label}</code>,
+    },
+    ...entries.map((col, colIdx) => ({
+      title: <code className="cell-code">{col.id}</code>,
+      key: col.id,
+      width: 90,
+      render: (_: unknown, __: unknown, rowIdx: number) => {
+        if (rowIdx === colIdx) {
+          return <Text type="secondary">—</Text>;
+        }
+        const row = entries[rowIdx];
+        const compat = checkVersionCompatibility(row.data, col.data);
+        const verdict = compat.compatible
+          ? compat.warnings.length > 0
+            ? 'compatible with warnings'
+            : 'compatible'
+          : 'incompatible';
+        return (
+          <CompatCell
+            compat={compat}
+            label={`${row.id} and ${col.id}: ${verdict}. Open the version matrix for this pair.`}
+            onActivate={() => drillDown(row, col)}
+          />
+        );
+      },
+    })),
+  ];
+
+  const dataSource = entries.map((e) => ({ key: e.id, rowLabel: e.id }));
+
+  return (
+    <Card title="Pairwise Compatibility">
+      <Flex vertical gap="middle">
+        <RecommendedSetBanner entries={entries} allPackages={allPackages} />
+        <Text type="secondary">
+          Each cell compares one pair at the selected versions. Click a cell to open the
+          full version-by-version matrix for that pair.
+        </Text>
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          pagination={false}
+          size="small"
+          bordered
+          scroll={{ x: 'max-content' }}
+        />
+      </Flex>
+    </Card>
+  );
+}
+
+function RecommendedSetBanner({
+  entries,
+  allPackages,
+}: {
+  entries: (SelectedEntry & { data: PackageVersion })[];
+  allPackages: Package[];
+}) {
+  const { message } = App.useApp();
+  const recommended = findRecommendedSet(entries.map((e) => e.name), allPackages);
+
+  if (!recommended) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        title="No mutually compatible version set found"
+        description="No combination of tracked versions of these packages is fully compatible."
+      />
+    );
+  }
+
+  const installCommand = `npm install ${recommended.versions
+    .map((v) => `${v.name}@${v.version}`)
+    .join(' ')}`;
+
+  const copyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(installCommand);
+      message.success('Install command copied');
+    } catch {
+      message.error('Could not copy to clipboard');
+    }
+  };
+
+  return (
+    <Alert
+      type="success"
+      showIcon
+      title={`★ Recommended compatible set: ${recommended.versions
+        .map((v) => `${v.name}@${v.version}`)
+        .join(' + ')}`}
+      description={
+        <Flex vertical gap="small" align="flex-start">
+          {recommended.warnings.map((w, idx) => (
+            <Text key={idx} type="warning">
+              ⚠ {w}
+            </Text>
+          ))}
+          <Flex gap="small" align="center" wrap>
+            <Text code>{installCommand}</Text>
+            <Button size="small" icon={<CopyOutlined />} onClick={copyCommand}>
+              Copy
+            </Button>
+          </Flex>
+        </Flex>
+      }
+    />
   );
 }
 
@@ -318,7 +600,7 @@ interface VersionCompatibilityMatrixCardProps {
 function VersionCompatibilityMatrixCard({
   matrixData,
   selectedCell,
-  onSelectCell
+  onSelectCell,
 }: VersionCompatibilityMatrixCardProps) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [problemsOnly, setProblemsOnly] = useState(true);
@@ -365,7 +647,7 @@ function VersionCompatibilityMatrixCard({
       render: (version: string) => <code>{version}</code>,
     },
     ...visiblePkg2Versions.map((v: PackageVersion) => ({
-      title: <code style={{ fontSize: '12px' }}>{v.version}</code>,
+      title: <code className="cell-code">{v.version}</code>,
       dataIndex: `v_${v.version}`,
       key: `v_${v.version}`,
       width: 80,
@@ -378,59 +660,17 @@ function VersionCompatibilityMatrixCard({
         const verdict = compat.compatible
           ? (compat.warnings.length > 0 ? 'compatible with warnings' : 'compatible')
           : 'incompatible';
-        const cellLabel = `${matrixData.pkg1Name}@${record.version} and ${matrixData.pkg2Name}@${v.version}: ${verdict}. View details.`;
-        const openDetail = () => {
-          onSelectCell({ v1: record.version, v2: v.version });
-          setDetailModalOpen(true);
-        };
 
         return (
-          <Tooltip
-            title={compat.reason || (compat.compatible ? 'Compatible' : 'Incompatible')}
-          >
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label={cellLabel}
-              onClick={openDetail}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  openDetail();
-                }
-              }}
-              style={{
-                backgroundColor: compat.compatible ? '#f6ffed' : '#fef2f0',
-                border: `2px solid ${compat.compatible ? '#91d5ff' : '#ffccc7'}`,
-                borderRadius: '4px',
-                padding: '4px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              {isRecommended && (
-                <Badge
-                  count="★"
-                  style={{
-                    backgroundColor: '#faad14',
-                    color: '#fff',
-                    fontSize: '10px',
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                  }}
-                />
-              )}
-              {compat.compatible ? (
-                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />
-              ) : compat.warnings.length > 0 ? (
-                <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: '14px' }} />
-              ) : (
-                <CloseCircleOutlined style={{ color: '#f5222d', fontSize: '14px' }} />
-              )}
-            </div>
-          </Tooltip>
+          <CompatCell
+            compat={compat}
+            label={`${matrixData.pkg1Name}@${record.version} and ${matrixData.pkg2Name}@${v.version}: ${verdict}. View details.`}
+            onActivate={() => {
+              onSelectCell({ v1: record.version, v2: v.version });
+              setDetailModalOpen(true);
+            }}
+            badge={!!isRecommended}
+          />
         );
       },
     })),
@@ -466,25 +706,23 @@ function VersionCompatibilityMatrixCard({
   ];
 
   const grid = (
-    <>
-      <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
-        <Table
-          columns={columns}
-          dataSource={matrixDataSource}
-          pagination={false}
-          size="small"
-          bordered
-          rowKey="version"
-          scroll={{ x: true }}
-        />
-      </div>
+    <Flex vertical gap="middle">
+      <Table
+        columns={columns}
+        dataSource={matrixDataSource}
+        pagination={false}
+        size="small"
+        bordered
+        rowKey="version"
+        scroll={{ x: 'max-content' }}
+      />
 
-      <p style={{ marginBottom: '1rem', fontSize: '12px', color: '#666' }}>
+      <Text type="secondary">
         Showing the 20 most recent versions of each package.
-      </p>
+      </Text>
 
       <Collapse items={legendItems} />
-    </>
+    </Flex>
   );
 
   const fullGridPanel = {
@@ -496,44 +734,43 @@ function VersionCompatibilityMatrixCard({
   return (
     <>
       <Card title="Version Compatibility Matrix">
-        {recommendedPair && (
-          <Alert
-            title="★ Recommended Compatible Versions"
-            description={`${matrixData.pkg1Name}@${recommendedPair.v1} + ${matrixData.pkg2Name}@${recommendedPair.v2}`}
-            type="success"
-            showIcon
-            style={{ marginBottom: '1.5rem' }}
-          />
-        )}
+        <Flex vertical gap="middle">
+          {recommendedPair && (
+            <Alert
+              title="★ Recommended Compatible Versions"
+              description={`${matrixData.pkg1Name}@${recommendedPair.v1} + ${matrixData.pkg2Name}@${recommendedPair.v2}`}
+              type="success"
+              showIcon
+            />
+          )}
 
-        <Space style={{ marginBottom: '1rem' }}>
-          <Switch
-            checked={problemsOnly}
-            onChange={setProblemsOnly}
-          />
-          <span>Show only incompatible / warning combinations</span>
-        </Space>
+          <Space>
+            <Switch
+              id="problems-only-switch"
+              checked={problemsOnly}
+              onChange={setProblemsOnly}
+            />
+            <label htmlFor="problems-only-switch">
+              Only show versions with problems
+            </label>
+          </Space>
 
-        <p style={{ marginBottom: '1rem', fontSize: '12px', color: '#666' }}>
-          Click any cell to see detailed compatibility information
-        </p>
+          <Text type="secondary">
+            Click any cell to see detailed compatibility information
+          </Text>
 
-        {problemsOnly && !hasAnyProblems ? (
-          <Result
-            status="success"
-            title="All checked version combinations are compatible."
-            subTitle="No incompatible or warning-level version pairs were found among the 20 most recent versions of each package."
-            style={{ padding: '2rem 0' }}
-          />
-        ) : problemsOnly ? (
-          <div style={{ marginBottom: '1.5rem' }}>{grid}</div>
-        ) : (
-          <Collapse
-            defaultActiveKey={[]}
-            items={[fullGridPanel]}
-            style={{ marginBottom: '1.5rem' }}
-          />
-        )}
+          {problemsOnly && !hasAnyProblems ? (
+            <Result
+              status="success"
+              title="All checked version combinations are compatible."
+              subTitle="No incompatible or warning-level version pairs were found among the 20 most recent versions of each package."
+            />
+          ) : problemsOnly ? (
+            grid
+          ) : (
+            <Collapse defaultActiveKey={[]} items={[fullGridPanel]} />
+          )}
+        </Flex>
       </Card>
 
       {selectedCell && matrixData && (
@@ -576,6 +813,8 @@ function DetailModal({
   pkg1Data,
   pkg2Data,
 }: DetailModalProps) {
+  const { token } = theme.useToken();
+
   return (
     <Modal
       title={`${pkg1Name}@${pkg1Version} + ${pkg2Name}@${pkg2Version}`}
@@ -584,10 +823,10 @@ function DetailModal({
       width={700}
       footer={null}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="large">
+      <Flex vertical gap="large">
         {/* Compatibility Status */}
         <Alert
-          title={compat.compatible ? '✓ Compatible' : '✗ Incompatible'}
+          title={compat.compatible ? 'Compatible' : 'Incompatible'}
           description={compat.reason || (compat.compatible ? 'These versions can be used together' : 'These versions have conflicts')}
           type={compat.compatible ? 'success' : 'error'}
           showIcon
@@ -595,8 +834,8 @@ function DetailModal({
 
         {/* geostyler-style Requirements */}
         {pkg1Data?.geostylerStyleRange || pkg2Data?.geostylerStyleRange ? (
-          <div>
-            <h4>geostyler-style Requirements</h4>
+          <Flex vertical gap="small">
+            <Title level={4}>geostyler-style Requirements</Title>
             <Table
               columns={[
                 { title: 'Package', dataIndex: 'name', key: 'name', render: (name: string) => <code>{name}</code> },
@@ -608,27 +847,27 @@ function DetailModal({
               ]}
               pagination={false}
               size="small"
+              scroll={{ x: 'max-content' }}
             />
             {compat.sharedRange && (
-              <Alert 
-                title={`✓ Overlapping Range: ${compat.sharedRange}`}
+              <Alert
+                title={`Overlapping Range: ${formatRangeForDisplay(compat.sharedRange)}`}
                 type="success"
-                style={{ marginTop: '0.5rem' }}
               />
             )}
-          </div>
+          </Flex>
         ) : null}
 
         {/* Module System */}
         <div>
-          <h4>Module System</h4>
-          <Space>
-            <Badge 
-              color={pkg1Data?.esmSupport ? '#52c41a' : '#096dd9'} 
+          <Title level={4}>Module System</Title>
+          <Space wrap>
+            <Badge
+              color={pkg1Data?.esmSupport ? token.colorSuccess : token.colorInfo}
               text={`${pkg1Name}@${pkg1Version}: ${pkg1Data?.esmSupport ? 'ESM' : 'CJS'}`}
             />
-            <Badge 
-              color={pkg2Data?.esmSupport ? '#52c41a' : '#096dd9'} 
+            <Badge
+              color={pkg2Data?.esmSupport ? token.colorSuccess : token.colorInfo}
               text={`${pkg2Name}@${pkg2Version}: ${pkg2Data?.esmSupport ? 'ESM' : 'CJS'}`}
             />
           </Space>
@@ -637,15 +876,15 @@ function DetailModal({
         {/* Warnings */}
         {compat.warnings.length > 0 && (
           <div>
-            <h4>Warnings</h4>
-            <Space orientation="vertical">
+            <Title level={4}>Warnings</Title>
+            <Flex vertical gap="small">
               {compat.warnings.map((warning: string, idx: number) => (
                 <Alert key={idx} title={warning} type="warning" showIcon />
               ))}
-            </Space>
+            </Flex>
           </div>
         )}
-      </Space>
+      </Flex>
     </Modal>
   );
 }

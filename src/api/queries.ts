@@ -126,6 +126,111 @@ export function checkVersionCompatibility(
 }
 
 /**
+ * A mutually-compatible version pick, one entry per requested package.
+ */
+export interface RecommendedSet {
+  versions: { name: string; version: string }[];
+  /** The geostyler-style version anchoring the set (null when no package has a range). */
+  gsVersion: string | null;
+  /** Non-fatal issues in the chosen set (e.g. mixed ESM/CJS). */
+  warnings: string[];
+}
+
+/**
+ * Find the newest mutually-compatible version set for the given packages.
+ *
+ * Strategy: walk concrete geostyler-style versions newest-first; for each
+ * candidate, pick every package's latest stable version whose
+ * `geostylerStyleRange` accepts it (packages without ranges contribute their
+ * latest stable version). The first candidate whose full set also passes the
+ * pairwise `checkVersionCompatibility` (peer deps etc.) wins. Returns null
+ * when no set exists among tracked versions.
+ */
+export function findRecommendedSet(
+  packageNames: string[],
+  allPackages: Package[]
+): RecommendedSet | null {
+  const pkgs = packageNames
+    .map((n) => allPackages.find((p) => p.name === n))
+    .filter((p): p is Package => !!p);
+  if (pkgs.length < 2) return null;
+
+  // Prefer stable releases; fall back to prereleases only if that's all there is.
+  // Versions are pre-sorted newest-first in the dataset.
+  const stableVersions = (p: Package) => {
+    const s = p.versions.filter((v) => !v.isPrerelease);
+    return s.length > 0 ? s : p.versions;
+  };
+
+  // Pairwise-validate a candidate set; returns collected warnings, or null if
+  // any pair is incompatible.
+  const validate = (chosen: PackageVersion[]): string[] | null => {
+    const warnings: string[] = [];
+    for (let i = 0; i < chosen.length; i++) {
+      for (let j = i + 1; j < chosen.length; j++) {
+        const r = checkVersionCompatibility(chosen[i], chosen[j]);
+        if (!r.compatible) return null;
+        warnings.push(...r.warnings);
+      }
+    }
+    return Array.from(new Set(warnings));
+  };
+
+  const toResult = (chosen: PackageVersion[], gsVersion: string | null, warnings: string[]): RecommendedSet => ({
+    versions: chosen.map((v) => ({ name: v.name, version: v.version })),
+    gsVersion,
+    warnings,
+  });
+
+  const hasRange = (p: Package) =>
+    p.name !== 'geostyler-style' && stableVersions(p).some((v) => v.geostylerStyleRange);
+
+  const gsPkg = allPackages.find((p) => p.name === 'geostyler-style');
+  const candidates = gsPkg ? stableVersions(gsPkg).map((v) => v.version) : [];
+
+  if (pkgs.some(hasRange) && candidates.length > 0) {
+    for (const gsVersion of candidates) {
+      const chosen: PackageVersion[] = [];
+      let ok = true;
+      for (const p of pkgs) {
+        if (p.name === 'geostyler-style') {
+          const v = p.versions.find((x) => x.version === gsVersion);
+          if (!v) { ok = false; break; }
+          chosen.push(v);
+        } else if (hasRange(p)) {
+          const v = stableVersions(p).find(
+            (x) => x.geostylerStyleRange && safeSatisfies(gsVersion, x.geostylerStyleRange)
+          );
+          if (!v) { ok = false; break; }
+          chosen.push(v);
+        } else {
+          chosen.push(stableVersions(p)[0]);
+        }
+      }
+      if (!ok) continue;
+      const warnings = validate(chosen);
+      if (warnings === null) continue;
+      return toResult(chosen, gsVersion, warnings);
+    }
+    return null;
+  }
+
+  // No geostyler-style coupling involved: latest stable of each, validated pairwise.
+  const chosen = pkgs.map((p) => stableVersions(p)[0]);
+  const warnings = validate(chosen);
+  if (warnings === null) return null;
+  return toResult(chosen, null, warnings);
+}
+
+function safeSatisfies(version: string, range: string): boolean {
+  try {
+    return semver.satisfies(version, range);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Result shape returned by getVersionCompatibilityMatrix for a pair of packages.
  */
 export interface VersionCompatibilityMatrixData {
