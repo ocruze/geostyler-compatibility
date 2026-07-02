@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { satisfies, intersectRanges, rangesOverlap, compareVersions } from '@/utils/semver';
+import { satisfies, intersectRanges, rangesOverlap, compareVersions, formatRangeForDisplay } from '@/utils/semver';
 
 describe('test harness', () => {
   it('runs', () => {
@@ -44,6 +44,20 @@ describe('rangesOverlap', () => {
   });
   it('false when disjoint', () => {
     expect(rangesOverlap('^11.0.0', '^12.0.0')).toBe(false);
+  });
+});
+
+describe('formatRangeForDisplay', () => {
+  it('strips -0 prerelease sentinels', () => {
+    expect(formatRangeForDisplay('>=10.5.0 <11.0.0-0')).toBe('>=10.5.0 <11.0.0');
+  });
+
+  it('drops redundant lower bounds, keeping the highest', () => {
+    expect(formatRangeForDisplay('>=10.5.0 <11.0.0-0 >=10.4.0')).toBe('>=10.5.0 <11.0.0');
+  });
+
+  it('leaves simple ranges untouched', () => {
+    expect(formatRangeForDisplay('^11.0.0')).toBe('^11.0.0');
   });
 });
 

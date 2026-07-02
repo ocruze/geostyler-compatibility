@@ -27,6 +27,32 @@ export function rangesOverlap(range1: string, range2: string): boolean {
 }
 
 /**
+ * Make a normalized semver range readable for display.
+ * `semver.validRange` output carries artifacts users shouldn't have to parse:
+ * `-0` prerelease sentinels (`<11.0.0-0`) and redundant `>=` comparators from
+ * concatenated intersections (`>=10.5.0 <11.0.0-0 >=10.4.0`).
+ */
+export function formatRangeForDisplay(range: string): string {
+  const parts = Array.from(
+    new Set(
+      range
+        .trim()
+        .split(/\s+/)
+        .map((p) => p.replace(/-0$/, ''))
+    )
+  );
+  // Keep only the highest lower bound.
+  const lowerBounds = parts.filter((p) => p.startsWith('>='));
+  if (lowerBounds.length > 1) {
+    const highest = lowerBounds.reduce((a, b) =>
+      semver.gt(a.slice(2), b.slice(2)) ? a : b
+    );
+    return parts.filter((p) => !p.startsWith('>=') || p === highest).join(' ');
+  }
+  return parts.join(' ');
+}
+
+/**
  * Get the latest version from a list of versions
  */
 export function getLatestVersion(versions: string[]): string | null {
