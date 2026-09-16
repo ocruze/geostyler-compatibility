@@ -25,7 +25,9 @@ function RootLayout() {
         Skip to main content
       </a>
       <Header className="app-header">
-        <h1 className="app-title">GeoStyler Compatibility</h1>
+        <h1 className="app-title">
+          <Link to="/">GeoStyler Compatibility</Link>
+        </h1>
         {/*
           Plain nav links instead of antd's horizontal <Menu>: Menu's
           responsive overflow measurement can race on first render and
