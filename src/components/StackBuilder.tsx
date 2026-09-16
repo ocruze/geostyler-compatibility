@@ -1,5 +1,7 @@
-import { Checkbox, Flex, Typography } from 'antd';
+import { Checkbox, Flex, Select, Typography } from 'antd';
 
+import { candidateVersions } from '@/engine';
+import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageCategory } from '@/types/compatibility';
 
 import { LatestReleasesGrid } from './LatestReleasesGrid';
@@ -15,18 +17,44 @@ const GROUPS: { category: PackageCategory; label: string }[] = [
   { category: 'core', label: 'Core packages' },
 ];
 
+export type Pins = Record<string, string>;
+
 interface StackBuilderProps {
   packages: Package[];
   stack: string[];
-  onStackChange: (stack: string[]) => void;
+  pins: Pins;
+  onChange: (stack: string[], pins: Pins) => void;
 }
 
-export function StackBuilder({ packages, stack, onStackChange }: StackBuilderProps) {
-  const setGroup = (category: PackageCategory, checked: string[]) => {
-    const next = new Set(stack.filter((name) => packages.find((p) => p.name === name)?.category !== category));
-    checked.forEach((name) => next.add(name));
+const RECOMMENDED = '';
+
+export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderProps) {
+  const [includePrereleases] = usePrereleases();
+
+  const toggle = (name: string, checked: boolean) => {
+    const next = new Set(stack);
+    if (checked) next.add(name);
+    else next.delete(name);
+    const { [name]: dropped, ...rest } = pins;
+    void dropped;
     // Stored in tracked order so the same stack always gives the same URL.
-    onStackChange(packages.map((p) => p.name).filter((name) => next.has(name)));
+    onChange(packages.map((p) => p.name).filter((n) => next.has(n)), checked ? pins : rest);
+  };
+
+  const pin = (name: string, version: string) => {
+    const { [name]: dropped, ...rest } = pins;
+    void dropped;
+    onChange(stack, version === RECOMMENDED ? rest : { ...rest, [name]: version });
+  };
+
+  const versionOptions = (pkg: Package) => {
+    const versions = candidateVersions(pkg, includePrereleases).map((v) => v.version);
+    const pinned = pins[pkg.name];
+    if (pinned && !versions.includes(pinned)) versions.unshift(pinned);
+    return [
+      { value: RECOMMENDED, label: 'Recommended' },
+      ...versions.map((version) => ({ value: version, label: version })),
+    ];
   };
 
   return (
@@ -39,19 +67,36 @@ export function StackBuilder({ packages, stack, onStackChange }: StackBuilderPro
         </legend>
         <Flex vertical gap="middle">
           {GROUPS.map(({ category, label }) => {
-            const options = packages.filter((p) => p.category === category).map((p) => ({ label: p.name, value: p.name }));
-            if (options.length === 0) return null;
+            const members = packages.filter((p) => p.category === category);
+            if (members.length === 0) return null;
             return (
               <div key={category} role="group" aria-labelledby={`stack-group-${category}`}>
                 <Text id={`stack-group-${category}`} strong>
                   {label}
                 </Text>
-                <Checkbox.Group
-                  className="stack-builder__group"
-                  options={options}
-                  value={stack.filter((name) => options.some((o) => o.value === name))}
-                  onChange={(checked) => setGroup(category, checked as string[])}
-                />
+                <ul className="stack-builder__group">
+                  {members.map((pkg) => {
+                    const ticked = stack.includes(pkg.name);
+                    return (
+                      <li key={pkg.name}>
+                        <Checkbox checked={ticked} onChange={(e) => toggle(pkg.name, e.target.checked)}>
+                          {pkg.name}
+                        </Checkbox>
+                        {ticked && (
+                          <Select
+                            size="small"
+                            className="stack-builder__version"
+                            aria-label={`${pkg.name} version`}
+                            value={pins[pkg.name] ?? RECOMMENDED}
+                            options={versionOptions(pkg)}
+                            onChange={(version) => pin(pkg.name, version)}
+                            showSearch
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             );
           })}
@@ -69,7 +114,7 @@ export function StackBuilder({ packages, stack, onStackChange }: StackBuilderPro
             <LatestReleasesGrid packages={packages} />
           </>
         ) : (
-          <VersionSetView packages={packages} stack={stack} />
+          <VersionSetView packages={packages} stack={stack} pins={pins} />
         )}
       </div>
     </div>

@@ -237,10 +237,23 @@
 }
 
 .stack-builder__group {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 4px;
+}
+
+.stack-builder__group li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.stack-builder__version {
+  width: 150px;
 }
 
 .stack-builder__result {
