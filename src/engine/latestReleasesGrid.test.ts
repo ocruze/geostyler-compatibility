@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildLatestReleasesGrid, latestStableVersion } from '@/engine/latestReleasesGrid';
+import { buildLatestReleasesGrid, latestVersion } from '@/engine/latestReleasesGrid';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 import { fx } from './__fixtures__/versions';
@@ -11,17 +11,23 @@ const pkg = (name: string, versions: PackageVersion[], category: Package['catego
 
 const prerelease = (base: PackageVersion, version: string): PackageVersion => ({ ...base, version, isPrerelease: true });
 
-describe('latestStableVersion', () => {
+describe('latestVersion', () => {
   it('skips prereleases', () => {
     const stable = fx('geostyler-style', '13.0.0');
     const p = pkg('geostyler-style', [prerelease(stable, '14.0.0-next.1'), stable], 'core');
-    expect(latestStableVersion(p)?.version).toBe('13.0.0');
+    expect(latestVersion(p)?.version).toBe('13.0.0');
+  });
+
+  it('includes prereleases when asked', () => {
+    const stable = fx('geostyler-style', '13.0.0');
+    const p = pkg('geostyler-style', [prerelease(stable, '14.0.0-next.1'), stable], 'core');
+    expect(latestVersion(p, true)?.version).toBe('14.0.0-next.1');
   });
 
   it('falls back to the newest prerelease when no stable version exists', () => {
     const base = fx('geostyler-style', '13.0.0');
     const p = pkg('geostyler-style', [prerelease(base, '14.0.0-next.2'), prerelease(base, '14.0.0-next.1')], 'core');
-    expect(latestStableVersion(p)?.version).toBe('14.0.0-next.2');
+    expect(latestVersion(p)?.version).toBe('14.0.0-next.2');
   });
 });
 
@@ -45,5 +51,12 @@ describe('buildLatestReleasesGrid', () => {
     expect(grid.cells[2][1]?.verdict).toBe('shipped-together');
     expect(grid.cells[2][3]?.verdict).toBe('independent');
     expect(grid.cells[0][2]?.verdict).toBe('risk');
+  });
+
+  it('shows prereleases only when asked', () => {
+    const stable = fx('geostyler-style', '13.0.0');
+    const withNext = [pkg('geostyler-style', [prerelease(stable, '14.0.0-next.1'), stable], 'core'), packages[1]];
+    expect(buildLatestReleasesGrid(withNext).versions[0].version).toBe('13.0.0');
+    expect(buildLatestReleasesGrid(withNext, true).versions[0].version).toBe('14.0.0-next.1');
   });
 });

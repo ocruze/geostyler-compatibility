@@ -35,6 +35,10 @@ export interface VersionSet {
 
 export type VersionSetResult = { status: 'found'; set: VersionSet } | { status: 'none' };
 
+// Exactly the stack at its chosen versions; a core package appears only when it is in the stack.
+export const installCommand = (versions: PackageVersion[]) =>
+  `npm install ${versions.map((v) => `${v.name}@${v.version}`).join(' ')}`;
+
 export function stackPairSentence(pair: StackPair): string {
   if (!pair.via) return verdictSentence(pair.evaluation);
   const axis = pair.evaluation.core.find((c) => c.outcome === 'disjoint');

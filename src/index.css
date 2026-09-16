@@ -268,3 +268,20 @@
   align-items: baseline;
   gap: 4px;
 }
+
+.prerelease-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Long install commands wrap instead of widening the page. */
+.install-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  flex: 1 1 280px;
+  min-width: 0;
+}

@@ -24,7 +24,7 @@ function StackBuilderPage() {
   const stack = (stackParam ? stackParam.split(',') : []).filter((name) => tracked.has(name));
 
   useEffect(() => {
-    document.title = 'Stack builder · GeoStyler Compatibility';
+    document.title = 'Check compatibility · GeoStyler Compatibility';
   }, []);
 
   const setStack = (next: string[]) => {

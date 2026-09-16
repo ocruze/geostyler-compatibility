@@ -6,6 +6,7 @@ import { buildLatestReleasesGrid, versionLabel, type PairEvaluation } from '@/en
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 import { VerdictCell, VerdictDetail, VerdictTag } from './Verdict';
+import { usePrereleases } from './prereleases';
 import { VERDICT_META, VERDICTS } from './verdictMeta';
 
 const { Text } = Typography;
@@ -27,7 +28,8 @@ function HeaderLink({ version, short }: { version: PackageVersion; short?: boole
 }
 
 export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
-  const grid = useMemo(() => buildLatestReleasesGrid(packages), [packages]);
+  const [showPrereleases] = usePrereleases();
+  const grid = useMemo(() => buildLatestReleasesGrid(packages, showPrereleases), [packages, showPrereleases]);
   const [selected, setSelected] = useState<PairEvaluation | null>(null);
 
   return (
@@ -35,7 +37,7 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
       <div className="grid-scroll" tabIndex={0}>
         <table className="verdict-grid">
           <caption className="sr-only">
-            Latest stable release of every tracked package against every other. Rows and columns are packages; each
+            Latest release of every tracked package against every other. Rows and columns are packages; each
             cell is a verdict.
           </caption>
           <thead>

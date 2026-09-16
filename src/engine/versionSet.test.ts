@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildVersionSet, stackPairSentence } from '@/engine/versionSet';
+import { buildVersionSet, installCommand, stackPairSentence } from '@/engine/versionSet';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 import { fx, fxPackage } from './__fixtures__/versions';
@@ -110,6 +110,13 @@ describe('buildVersionSet', () => {
     const onlyOld = fxPackage('geostyler-openlayers-parser', '4.1.2');
     const result = buildVersionSet([style, data, sld, onlyOld], ['geostyler-sld-parser', 'geostyler-openlayers-parser']);
     expect(result.status).toBe('none');
+  });
+
+  it('writes one install command for the chosen versions only', () => {
+    const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser']);
+    expect(installCommand(found(result).versions)).toBe(
+      'npm install geostyler@18.6.0 geostyler-sld-parser@8.5.0 geostyler-mapbox-parser@6.2.0',
+    );
   });
 
   it('lists the newest available version next to each chosen one', () => {
