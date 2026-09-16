@@ -18,7 +18,6 @@ export const REPOS = [
   'geostyler/geostyler-geojson-parser',
   'geostyler/geostyler-wfs-parser',
   'geostyler/geostyler-shapefile-parser',
-  'geostyler/geostyler-cql-parser',
 ] as const;
 
 /**
