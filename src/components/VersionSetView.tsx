@@ -3,7 +3,8 @@ import { Alert, Flex, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo } from 'react';
 
-import { buildVersionSet, stackPairSentence, versionLabel, type StackPair, type VersionSet } from '@/engine';
+import { CORE_PACKAGES } from '@/constants/repos';
+import { buildVersionSet, stackPairSentence, versionLabel, type Anchors, type StackPair } from '@/engine';
 import type { CoreRange, Package, PackageVersion } from '@/types/compatibility';
 
 import { VerdictTag } from './Verdict';
@@ -44,30 +45,20 @@ const columns: ColumnsType<Row> = [
     render: (_, { chosen, newest }) =>
       newest.version === chosen.version ? <Tag color="success">newest</Tag> : <code>{newest.version}</code>,
   },
-  {
-    title: 'geostyler-style range',
-    key: 'style',
-    render: (_, { chosen }) =>
-      chosen.name === 'geostyler-style' ? <Text type="secondary">is the core</Text> : coreRangeText(chosen.coreRanges['geostyler-style']),
-  },
-  {
-    title: 'geostyler-data range',
-    key: 'data',
-    render: (_, { chosen }) =>
-      chosen.name === 'geostyler-data' ? <Text type="secondary">is the core</Text> : coreRangeText(chosen.coreRanges['geostyler-data']),
-  },
+  ...CORE_PACKAGES.map(
+    (core): ColumnsType<Row>[number] => ({
+      title: `${core} range`,
+      key: core,
+      render: (_, { chosen }) =>
+        chosen.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(chosen.coreRanges[core]),
+    }),
+  ),
 ];
 
-function Anchors({ set }: { set: VersionSet }) {
-  const usedCores = (['geostyler-style', 'geostyler-data'] as const).filter((core) =>
-    set.versions.some((v) => v.name === core || v.coreRanges[core].source !== 'none'),
-  );
-  if (usedCores.length === 0) return null;
-  return (
-    <Text type="secondary">
-      Anchor: {usedCores.map((core) => versionLabel(set.anchors[core])).join(', ')}.
-    </Text>
-  );
+function AnchorLine({ anchors }: { anchors: Anchors }) {
+  const used = CORE_PACKAGES.map((core) => anchors[core]).filter((v): v is PackageVersion => v !== undefined);
+  if (used.length === 0) return null;
+  return <Text type="secondary">Anchor: {used.map(versionLabel).join(', ')}.</Text>;
 }
 
 function PairList({ pairs }: { pairs: StackPair[] }) {
@@ -117,7 +108,7 @@ export function VersionSetView({ packages, stack }: { packages: Package[]; stack
         dataSource={rows}
         scroll={{ x: 'max-content' }}
       />
-      <Anchors set={set} />
+      <AnchorLine anchors={set.anchors} />
       <PairList pairs={set.pairs} />
     </Flex>
   );

@@ -1,5 +1,5 @@
 import { evaluatePair, type PairEvaluation } from '@/engine/evaluatePair';
-import { candidateVersions } from '@/engine/versionSet';
+import { candidateVersions } from '@/engine/versions';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 export function latestStableVersion(pkg: Package): PackageVersion | undefined {

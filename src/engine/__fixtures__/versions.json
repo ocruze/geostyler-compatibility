@@ -792,5 +792,38 @@
     "repositoryUrl": "https://github.com/geostyler/geostyler-legend",
     "changelogUrl": "https://github.com/geostyler/geostyler-legend/blob/main/CHANGELOG.md",
     "npmUrl": "https://www.npmjs.com/package/geostyler-legend/v/5.2.1"
+  },
+  {
+    "name": "geostyler-geojson-parser",
+    "version": "1.0.0",
+    "category": "data-parser",
+    "dependencies": {
+      "@types/jest": "24.0.11",
+      "@types/node": "11.13.0",
+      "@types/geojson": "7946.0.7",
+      "geostyler-data": "1.0.0",
+      "@babel/polyfill": "7.4.3",
+      "@types/json-schema": "7.0.3"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "declared",
+        "range": "1.0.0"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-data": "1.0.0"
+    },
+    "moduleSystem": "cjs",
+    "esmSupport": false,
+    "publishDate": "2019-04-08T13:39:38.081Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-geojson-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-geojson-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-geojson-parser/v/1.0.0"
   }
 ]

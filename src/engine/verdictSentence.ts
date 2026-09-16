@@ -16,6 +16,9 @@ function riskSentence({ a, b, core }: PairEvaluation): string {
   return `Not tested together: they target different ${axis.core} schemas. Each gets its own copy; ${schemaNoun(axis.core)} objects may not match.`;
 }
 
+export const shippedTogetherSentence = (core: string, declaration: string) =>
+  `Different ${core} ranges, but ${declaration}, so upstream ships them together.`;
+
 function compatibleSentence({ core, declared, peers }: PairEvaluation): string {
   const parts = [
     ...core.map((c) => `${c.core} ranges intersect`),
@@ -41,7 +44,7 @@ export function verdictSentence(evaluation: PairEvaluation): string {
     case 'shipped-together': {
       const dep = declared.find((x) => x.satisfied) as DeclaredDependencyAxis;
       const axis = core.find((c) => c.outcome === 'disjoint') as CoreAxis;
-      return `Different ${axis.core} ranges, but ${dep.from} declares this ${dep.to} version, so upstream ships them together.`;
+      return shippedTogetherSentence(axis.core, `${dep.from} declares this ${dep.to} version`);
     }
     case 'compatible':
       return compatibleSentence(evaluation);

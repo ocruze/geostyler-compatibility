@@ -37,3 +37,5 @@ export const NPM_TO_REPO: Record<string, string> = Object.fromEntries(
 export const TRACKED_PACKAGES: string[] = Object.values(REPO_TO_NPM);
 
 export const CORE_PACKAGES: CorePackage[] = ['geostyler-style', 'geostyler-data'];
+
+export const isCorePackage = (name: string): name is CorePackage => CORE_PACKAGES.includes(name as CorePackage);

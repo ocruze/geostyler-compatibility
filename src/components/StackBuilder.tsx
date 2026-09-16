@@ -22,7 +22,7 @@ interface StackBuilderProps {
 }
 
 export function StackBuilder({ packages, stack, onStackChange }: StackBuilderProps) {
-  const toggleGroup = (category: PackageCategory, checked: string[]) => {
+  const setGroup = (category: PackageCategory, checked: string[]) => {
     const next = new Set(stack.filter((name) => packages.find((p) => p.name === name)?.category !== category));
     checked.forEach((name) => next.add(name));
     // Stored in tracked order so the same stack always gives the same URL.
@@ -50,7 +50,7 @@ export function StackBuilder({ packages, stack, onStackChange }: StackBuilderPro
                   className="stack-builder__group"
                   options={options}
                   value={stack.filter((name) => options.some((o) => o.value === name))}
-                  onChange={(checked) => toggleGroup(category, checked as string[])}
+                  onChange={(checked) => setGroup(category, checked as string[])}
                 />
               </div>
             );

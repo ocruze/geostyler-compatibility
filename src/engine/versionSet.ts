@@ -1,17 +1,10 @@
-import { CORE_PACKAGES } from '@/constants/repos';
-import type { CorePackage, Package, PackageCategory, PackageVersion, Verdict } from '@/types/compatibility';
+import { CORE_PACKAGES, isCorePackage } from '@/constants/repos';
+import type { CorePackage, Package, PackageVersion, Verdict } from '@/types/compatibility';
 import { intersectRanges, satisfies } from '@/utils/semver';
 
-import { evaluatePair, type PairEvaluation } from './evaluatePair';
-import { verdictSentence, versionLabel } from './verdictSentence';
-
-// A missing range on one of these excludes every anchor; a missing range elsewhere constrains nothing.
-const REQUIRED_CORES: Record<PackageCategory, CorePackage[]> = {
-  core: [],
-  ui: ['geostyler-style'],
-  'style-parser': ['geostyler-style'],
-  'data-parser': ['geostyler-data'],
-};
+import { EXPECTED_CORES, evaluatePair, type PairEvaluation } from './evaluatePair';
+import { shippedTogetherSentence, verdictSentence, versionLabel } from './verdictSentence';
+import { candidateVersions } from './versions';
 
 const ACCEPTED: Verdict[] = ['compatible', 'shipped-together', 'independent'];
 
@@ -28,8 +21,11 @@ export interface StackPair {
   via?: PackageVersion;
 }
 
+// Only the cores some stack package constrains.
+export type Anchors = Partial<Record<CorePackage, PackageVersion>>;
+
 export interface VersionSet {
-  anchors: Record<CorePackage, PackageVersion>;
+  anchors: Anchors;
   // Chosen versions, in stack order.
   versions: PackageVersion[];
   // Newest candidate of each stack package, in stack order.
@@ -42,23 +38,16 @@ export type VersionSetResult = { status: 'found'; set: VersionSet } | { status: 
 export function stackPairSentence(pair: StackPair): string {
   if (!pair.via) return verdictSentence(pair.evaluation);
   const axis = pair.evaluation.core.find((c) => c.outcome === 'disjoint');
-  return `Different ${axis?.core ?? 'core'} ranges, but ${versionLabel(pair.via)} declares both, so upstream ships them together.`;
+  return shippedTogetherSentence(axis?.core ?? 'core', `${versionLabel(pair.via)} declares both`);
 }
 
-// Newest-first; a package with no stable version uses its prereleases.
-export function candidateVersions(pkg: Package, includePrereleases = false): PackageVersion[] {
-  if (includePrereleases) return pkg.versions;
-  const stable = pkg.versions.filter((v) => !v.isPrerelease);
-  return stable.length > 0 ? stable : pkg.versions;
-}
-
-const isCore = (name: string) => CORE_PACKAGES.includes(name as CorePackage);
-
-function acceptsAnchors(v: PackageVersion, anchors: Record<CorePackage, PackageVersion>): boolean {
+// A version missing a range its category needs would pair as Unknown, so it accepts no anchor.
+function acceptsAnchors(v: PackageVersion, anchors: Anchors): boolean {
   return CORE_PACKAGES.every((core) => {
     const range = v.coreRanges[core];
-    if (range.source === 'none') return !REQUIRED_CORES[v.category].includes(core);
-    return satisfies(anchors[core].version, range.range);
+    if (range.source === 'none') return !EXPECTED_CORES[v.category].includes(core);
+    const anchor = anchors[core];
+    return anchor === undefined || satisfies(anchor.version, range.range);
   });
 }
 
@@ -89,22 +78,18 @@ function evaluateSet(chosen: PackageVersion[]): StackPair[] {
   return pairs;
 }
 
-function chooseForAnchors(
-  stack: Package[],
-  candidates: Map<string, PackageVersion[]>,
-  anchors: Record<CorePackage, PackageVersion>,
-): PackageVersion[] | null {
+function chooseForAnchors(stack: Package[], candidates: Map<string, PackageVersion[]>, anchors: Anchors): PackageVersion[] | null {
   const chosen = new Map<string, PackageVersion>();
   for (const pkg of stack) {
-    const version = isCore(pkg.name)
-      ? pkg.versions.find((v) => v.version === anchors[pkg.name as CorePackage].version)
+    const version = isCorePackage(pkg.name)
+      ? anchors[pkg.name]
       : candidates.get(pkg.name)!.find((v) => acceptsAnchors(v, anchors));
     if (version) chosen.set(pkg.name, version);
   }
 
-  // A package another chosen package declares follows that range, as npm would resolve it.
+  // A package another chosen version declares follows that range, even when none of its versions accepts the anchors.
   for (const pkg of stack) {
-    if (isCore(pkg.name)) continue;
+    if (isCorePackage(pkg.name)) continue;
     const ranges = [...chosen.values()]
       .filter((c) => c.name !== pkg.name && c.declaredDependencies[pkg.name] !== undefined)
       .map((c) => c.declaredDependencies[pkg.name]);
@@ -118,28 +103,23 @@ function chooseForAnchors(
   return stack.map((pkg) => chosen.get(pkg.name)!);
 }
 
-// Anchors for a core only matter when a stack package constrains it; otherwise the newest one stands in.
+// A core no stack package constrains has no anchor: one undefined entry keeps the loop to a single pass.
 function anchorCandidates(
   core: CorePackage,
   packages: Package[],
   stack: Package[],
   candidates: Map<string, PackageVersion[]>,
   includePrereleases: boolean,
-): PackageVersion[] {
-  const corePkg = packages.find((p) => p.name === core);
-  if (!corePkg) return [];
-  const all = candidateVersions(corePkg, includePrereleases);
+): (PackageVersion | undefined)[] {
   const constrained = stack.some(
     (pkg) => pkg.name === core || candidates.get(pkg.name)!.some((v) => v.coreRanges[core].source !== 'none'),
   );
-  return constrained ? all : all.slice(0, 1);
+  const corePkg = packages.find((p) => p.name === core);
+  if (!constrained || !corePkg) return [undefined];
+  return candidateVersions(corePkg, includePrereleases);
 }
 
-/**
- * The version set for a stack: anchors newest-first (geostyler-style outer, geostyler-data inner), each
- * package at its newest candidate accepting the anchors, then declared dependencies followed, and the first
- * set whose pairs are all Compatible, Shipped together or Independent wins.
- */
+// Anchors newest-first, geostyler-style outer and geostyler-data inner; the first accepted set wins.
 export function buildVersionSet(
   packages: Package[],
   stackNames: string[],
@@ -157,7 +137,9 @@ export function buildVersionSet(
 
   for (const styleAnchor of styleAnchors) {
     for (const dataAnchor of dataAnchors) {
-      const anchors = { 'geostyler-style': styleAnchor, 'geostyler-data': dataAnchor };
+      const anchors: Anchors = {};
+      if (styleAnchor) anchors['geostyler-style'] = styleAnchor;
+      if (dataAnchor) anchors['geostyler-data'] = dataAnchor;
       const chosen = chooseForAnchors(stack, candidates, anchors);
       if (!chosen) continue;
       const pairs = evaluateSet(chosen);
