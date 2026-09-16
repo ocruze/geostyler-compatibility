@@ -4,5 +4,5 @@ export { buildLatestReleasesGrid, latestVersion } from './latestReleasesGrid';
 export type { LatestReleasesGrid } from './latestReleasesGrid';
 export { verdictSentence, versionLabel } from './verdictSentence';
 export { buildVersionSet, installCommand, stackPairSentence } from './versionSet';
-export type { Anchors, PartialSet, StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';
+export type { Anchors, NoSet, PartialSet, Pins, PinToRelax, StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';
 export { candidateVersions } from './versions';

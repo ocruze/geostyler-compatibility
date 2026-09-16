@@ -8,10 +8,12 @@ import { candidateVersions } from './versions';
 
 const ACCEPTED: Verdict[] = ['compatible', 'shipped-together', 'independent'];
 
+// Package name to the version the user fixed for it.
+export type Pins = Record<string, string>;
+
 export interface VersionSetOptions {
   includePrereleases?: boolean;
-  // Package name to version; a version the dataset does not have is ignored.
-  pins?: Record<string, string>;
+  pins?: Pins;
 }
 
 export interface StackPair {
@@ -40,16 +42,27 @@ export interface PartialSet {
   set: VersionSet;
 }
 
-export type VersionSetResult =
-  | { status: 'found'; set: VersionSet }
-  | {
-      status: 'none';
-      // Pairs the closest attempt rejected.
-      failing: StackPair[];
-      // The pinned package in the most failing pairs, if any pin is involved.
-      relax: string | null;
-      partial: PartialSet | null;
-    };
+export interface PinToRelax {
+  name: string;
+  // Failing pairs the pin is in.
+  count: number;
+}
+
+interface ResultBase {
+  // Pins on versions the dataset does not have, left out of the search.
+  ignoredPins: string[];
+}
+
+export interface NoSet extends ResultBase {
+  status: 'none';
+  // Pairs the closest attempt rejected.
+  failing: StackPair[];
+  // The pinned package in the most failing pairs, if any pin is involved.
+  pinToRelax: PinToRelax | null;
+  partial: PartialSet | null;
+}
+
+export type VersionSetResult = ({ status: 'found'; set: VersionSet } & ResultBase) | NoSet;
 
 // Exactly the stack at its chosen versions; a core package appears only when it is in the stack.
 export function installCommand(versions: PackageVersion[]): string {
@@ -99,13 +112,13 @@ function evaluateSet(chosen: PackageVersion[]): StackPair[] {
   return pairs;
 }
 
-interface Search {
+interface SearchInput {
   stack: Package[];
   candidates: Map<string, PackageVersion[]>;
   pins: Map<string, PackageVersion>;
 }
 
-function chooseForAnchors({ stack, candidates, pins }: Search, anchors: Anchors): PackageVersion[] | null {
+function chooseForAnchors({ stack, candidates, pins }: SearchInput, anchors: Anchors): PackageVersion[] | null {
   const chosen = new Map<string, PackageVersion>();
   for (const pkg of stack) {
     const version =
@@ -134,7 +147,7 @@ function chooseForAnchors({ stack, candidates, pins }: Search, anchors: Anchors)
 function anchorCandidates(
   core: CorePackage,
   packages: Package[],
-  { stack, candidates, pins }: Search,
+  { stack, candidates, pins }: SearchInput,
   includePrereleases: boolean,
 ): (PackageVersion | undefined)[] {
   const pinned = pins.get(core);
@@ -149,68 +162,67 @@ function anchorCandidates(
 
 const rejected = (pairs: StackPair[]) => pairs.filter((p) => !ACCEPTED.includes(p.verdict));
 
-function pinToRelax(failing: StackPair[], pins: Map<string, PackageVersion>): string | null {
-  let best: string | null = null;
-  let bestCount = 0;
+function findPinToRelax(failing: StackPair[], pins: Map<string, PackageVersion>): PinToRelax | null {
+  let best: PinToRelax | null = null;
   for (const name of pins.keys()) {
     const count = failing.filter((p) => p.a.name === name || p.b.name === name).length;
-    if (count > bestCount) [best, bestCount] = [name, count];
+    if (count > (best?.count ?? 0)) best = { name, count };
   }
   return best;
 }
 
 // Anchors newest-first, geostyler-style outer and geostyler-data inner; the first accepted set wins.
-function search(packages: Package[], stackNames: string[], options: VersionSetOptions, withPartial: boolean): VersionSetResult {
+function search(packages: Package[], stackNames: string[], options: VersionSetOptions): Omit<NoSet, 'partial'> | Extract<VersionSetResult, { status: 'found' }> {
   const includePrereleases = options.includePrereleases ?? false;
   const stack = stackNames
     .map((name) => packages.find((p) => p.name === name))
     .filter((p): p is Package => p !== undefined);
   const candidates = new Map(stack.map((pkg) => [pkg.name, candidateVersions(pkg, includePrereleases)]));
   const pins = new Map<string, PackageVersion>();
+  const ignoredPins: string[] = [];
   for (const pkg of stack) {
-    const pinned = pkg.versions.find((v) => v.version === options.pins?.[pkg.name]);
+    const wanted = options.pins?.[pkg.name];
+    if (wanted === undefined) continue;
+    const pinned = pkg.versions.find((v) => v.version === wanted);
     if (pinned) pins.set(pkg.name, pinned);
+    else ignoredPins.push(pkg.name);
   }
-  const state: Search = { stack, candidates, pins };
+  const input: SearchInput = { stack, candidates, pins };
   const newest = stack.map((pkg) => candidates.get(pkg.name)![0]);
 
-  let closest: StackPair[] | null = null;
-  for (const styleAnchor of anchorCandidates('geostyler-style', packages, state, includePrereleases)) {
-    for (const dataAnchor of anchorCandidates('geostyler-data', packages, state, includePrereleases)) {
+  let closest: { pairs: StackPair[]; rejected: number } | null = null;
+  for (const styleAnchor of anchorCandidates('geostyler-style', packages, input, includePrereleases)) {
+    for (const dataAnchor of anchorCandidates('geostyler-data', packages, input, includePrereleases)) {
       const anchors: Anchors = {};
       if (styleAnchor) anchors['geostyler-style'] = styleAnchor;
       if (dataAnchor) anchors['geostyler-data'] = dataAnchor;
-      const chosen = chooseForAnchors(state, anchors);
+      const chosen = chooseForAnchors(input, anchors);
       if (!chosen) continue;
       const pairs = evaluateSet(chosen);
-      if (rejected(pairs).length === 0) {
-        return { status: 'found', set: { anchors, versions: chosen, newest, pairs } };
-      }
-      if (!closest || rejected(pairs).length < rejected(closest).length) closest = pairs;
+      const count = rejected(pairs).length;
+      if (count === 0) return { status: 'found', set: { anchors, versions: chosen, newest, pairs }, ignoredPins };
+      if (!closest || count < closest.rejected) closest = { pairs, rejected: count };
     }
   }
 
   // No anchor let every package in: show the pins with everything else at its newest.
-  const failing = rejected(closest ?? evaluateSet(stack.map((pkg) => pins.get(pkg.name) ?? candidates.get(pkg.name)![0])));
-  return {
-    status: 'none',
-    failing,
-    relax: pinToRelax(failing, pins),
-    partial: withPartial ? partialSet(packages, stackNames, options) : null,
-  };
+  const failing = rejected(closest?.pairs ?? evaluateSet(stack.map((pkg) => pins.get(pkg.name) ?? candidates.get(pkg.name)![0])));
+  return { status: 'none', failing, pinToRelax: findPinToRelax(failing, pins), ignoredPins };
 }
 
-// The first stack package whose removal leaves a set, tried in stack order.
-function partialSet(packages: Package[], stackNames: string[], options: VersionSetOptions): PartialSet | null {
+// The pin to relax first, then each stack package in order: the first removal that leaves a set wins.
+function partialSet(packages: Package[], stackNames: string[], options: VersionSetOptions, first: string | undefined): PartialSet | null {
   if (stackNames.length < 2) return null;
-  for (const removed of stackNames) {
-    const rest = stackNames.filter((name) => name !== removed);
-    const result = search(packages, rest, options, false);
+  const order = first ? [first, ...stackNames.filter((name) => name !== first)] : stackNames;
+  for (const removed of order) {
+    const result = search(packages, stackNames.filter((name) => name !== removed), options);
     if (result.status === 'found') return { removed, set: result.set };
   }
   return null;
 }
 
 export function buildVersionSet(packages: Package[], stackNames: string[], options: VersionSetOptions = {}): VersionSetResult {
-  return search(packages, stackNames, options, true);
+  const result = search(packages, stackNames, options);
+  if (result.status === 'found') return result;
+  return { ...result, partial: partialSet(packages, stackNames, options, result.pinToRelax?.name) };
 }

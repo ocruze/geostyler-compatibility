@@ -9,7 +9,8 @@ import {
   stackPairSentence,
   versionLabel,
   type Anchors,
-  type PartialSet,
+  type NoSet,
+  type Pins,
   type StackPair,
   type VersionSet,
 } from '@/engine';
@@ -99,7 +100,7 @@ function PairList({ pairs, label }: { pairs: StackPair[]; label: string }) {
   );
 }
 
-function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Record<string, string> }) {
+function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
   const rows: Row[] = set.versions.map((chosen, i) => ({
     chosen,
     newest: set.newest[i],
@@ -122,26 +123,16 @@ function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Record<string, 
   );
 }
 
-function relaxSentence(relax: string | null, failing: StackPair[], pinned: boolean): string {
-  if (relax) {
-    const count = failing.filter((p) => p.a.name === relax || p.b.name === relax).length;
-    return `Relax the pin on ${relax}: it is in ${count === 1 ? 'the failing pair' : `${count} of the failing pairs`}.`;
+function relaxSentence({ pinToRelax, failing }: NoSet, pinned: boolean): string {
+  if (pinToRelax) {
+    const { name, count } = pinToRelax;
+    return `Relax the pin on ${name}: it is in ${count === 1 ? 'the failing pair' : `${count} of the ${failing.length} failing pairs`}.`;
   }
-  if (pinned) return 'Every pin fits; the packages themselves need disjoint core versions.';
+  if (pinned) return 'No failing pair involves a pin: the other packages need disjoint core versions.';
   return 'No geostyler-style or geostyler-data version is accepted by every package in the stack.';
 }
 
-function NoSet({
-  failing,
-  relax,
-  partial,
-  pins,
-}: {
-  failing: StackPair[];
-  relax: string | null;
-  partial: PartialSet | null;
-  pins: Record<string, string>;
-}) {
+function NoSetView({ result, pins }: { result: NoSet; pins: Pins }) {
   const pinned = Object.keys(pins).length > 0;
   return (
     <Flex vertical gap="middle">
@@ -149,24 +140,36 @@ function NoSet({
         type="warning"
         showIcon
         title={pinned ? 'No version set keeps these pins' : 'No version set for this stack'}
-        description={relaxSentence(relax, failing, pinned)}
+        description={relaxSentence(result, pinned)}
       />
       <Title level={5}>Failing pairs</Title>
-      <PairList pairs={failing} label="Failing pairs" />
-      {partial && (
+      <PairList pairs={result.failing} label="Failing pairs" />
+      {result.partial && (
         <>
-          <Title level={5}>Best partial set without {partial.removed}</Title>
-          <VersionSetPanel set={partial.set} pins={pins} />
+          <Title level={5}>Partial set without {result.partial.removed}</Title>
+          <VersionSetPanel set={result.partial.set} pins={pins} />
         </>
       )}
     </Flex>
   );
 }
 
+function IgnoredPins({ names, pins }: { names: string[]; pins: Pins }) {
+  if (names.length === 0) return null;
+  return (
+    <Alert
+      type="warning"
+      showIcon
+      title="Some pins were left out"
+      description={`The dataset has no ${names.map((name) => `${name} ${pins[name]}`).join(', ')}. Those packages take the recommended version.`}
+    />
+  );
+}
+
 interface VersionSetViewProps {
   packages: Package[];
   stack: string[];
-  pins: Record<string, string>;
+  pins: Pins;
 }
 
 export function VersionSetView({ packages, stack, pins }: VersionSetViewProps) {
@@ -176,14 +179,17 @@ export function VersionSetView({ packages, stack, pins }: VersionSetViewProps) {
     [packages, stack, includePrereleases, pins],
   );
 
-  if (result.status !== 'found') {
-    return <NoSet failing={result.failing} relax={result.relax} partial={result.partial} pins={pins} />;
-  }
-
   return (
     <Flex vertical gap="middle">
-      <Title level={5}>Version set</Title>
-      <VersionSetPanel set={result.set} pins={pins} />
+      <IgnoredPins names={result.ignoredPins} pins={pins} />
+      {result.status === 'found' ? (
+        <>
+          <Title level={5}>Version set</Title>
+          <VersionSetPanel set={result.set} pins={pins} />
+        </>
+      ) : (
+        <NoSetView result={result} pins={pins} />
+      )}
     </Flex>
   );
 }
