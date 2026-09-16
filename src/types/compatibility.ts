@@ -33,6 +33,8 @@ export type ModuleSystem = 'esm' | 'cjs' | 'types-only';
  */
 export type CoreRange =
   | { source: 'declared'; range: string }
+  // Inherited through declared dependencies; origin is the version that declares the range.
+  | { source: 'transitive'; range: string; origin: { name: string; version: string } }
   | { source: 'none' };
 
 export type CoreRanges = Record<CorePackage, CoreRange>;
