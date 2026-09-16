@@ -8,8 +8,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { REPOS, REPO_TO_NPM } from '../src/constants/repos.js';
-import type { Dataset, Package, PackageVersion, PackageCategory, StyleFormat, DataFormat } from '../src/types/compatibility.js';
+import { REPOS, REPO_TO_NPM, TRACKED_PACKAGES, CORE_PACKAGES } from '../src/constants/repos.js';
+import type {
+  Dataset,
+  Package,
+  PackageVersion,
+  PackageCategory,
+  StyleFormat,
+  DataFormat,
+  CoreRanges,
+  ModuleSystem,
+} from '../src/types/compatibility.js';
 import * as semver from 'semver';
 import { ProxyAgent } from 'undici';
 
@@ -18,6 +27,10 @@ const __dirname = path.dirname(__filename);
 
 const OUTPUT_DIR = path.join(__dirname, '../src/data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'packages.json');
+
+const NPM_TO_REPO: Record<string, string> = Object.fromEntries(
+  Object.entries(REPO_TO_NPM).map(([repo, npmName]) => [npmName, repo]),
+);
 
 // Rate limiting
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -107,6 +120,41 @@ export function detectEsmSupport(versionData: Record<string, unknown>): boolean 
   return hasImport(exp);
 }
 
+const isDeclarationFile = (entry: unknown): boolean =>
+  typeof entry === 'string' && entry.endsWith('.d.ts');
+
+/**
+ * Types-only when the main or types entry is a declaration file and no JavaScript entry exists.
+ */
+export function detectModuleSystem(versionData: Record<string, unknown>): ModuleSystem {
+  const hasJsMain = typeof versionData.main === 'string' && !isDeclarationFile(versionData.main);
+  const hasOtherJsEntry = Boolean(versionData.module || versionData.exports || versionData.browser);
+  const hasDeclarationEntry = isDeclarationFile(versionData.main) || isDeclarationFile(versionData.types);
+  if (hasDeclarationEntry && !hasJsMain && !hasOtherJsEntry) return 'types-only';
+  return detectEsmSupport(versionData) ? 'esm' : 'cjs';
+}
+
+/**
+ * Keep only dependencies on tracked packages.
+ */
+function extractDeclaredDependencies(dependencies: Record<string, string> = {}): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(dependencies).filter(([name]) => TRACKED_PACKAGES.includes(name)),
+  );
+}
+
+/**
+ * The range a version declares on each core package, in dependencies or peerDependencies.
+ */
+function extractCoreRanges(versionData: NpmVersionData): CoreRanges {
+  return Object.fromEntries(
+    CORE_PACKAGES.map((core) => {
+      const range = versionData.dependencies?.[core] ?? versionData.peerDependencies?.[core];
+      return [core, range ? { source: 'declared', range } : { source: 'none' }];
+    }),
+  ) as CoreRanges;
+}
+
 /**
  * Minimal shape of a single version entry within the npm registry package
  * metadata response. Only documents the fields actually read below —
@@ -130,10 +178,11 @@ interface NpmRegistryPackage {
 }
 
 /**
- * Process npm package data into our format
+ * Turn one npm registry response into a Package record. Pure: no I/O.
  */
-function processNpmData(npmData: NpmRegistryPackage, repoName: string): Package {
-  const npmPackageName = REPO_TO_NPM[repoName];
+export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: string): Package {
+  const repoName = NPM_TO_REPO[npmPackageName];
+  if (!repoName) throw new Error(`${npmPackageName} is not a tracked package`);
   const category = getPackageCategory(repoName);
   const format = extractFormat(npmPackageName);
   
@@ -154,6 +203,9 @@ function processNpmData(npmData: NpmRegistryPackage, repoName: string): Package 
       category,
       dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
+      coreRanges: extractCoreRanges(versionData),
+      declaredDependencies: extractDeclaredDependencies(versionData.dependencies),
+      moduleSystem: detectModuleSystem(versionData),
       geostylerStyleRange:
         versionData.dependencies?.['geostyler-style'] ||
         versionData.peerDependencies?.['geostyler-style'],
@@ -209,7 +261,7 @@ async function main() {
       continue;
     }
     
-    const packageData = processNpmData(npmData as NpmRegistryPackage, repo);
+    const packageData = processNpmData(npmData as NpmRegistryPackage, npmPackageName);
     packages.push(packageData);
     
     console.log(`  ✓ Processed ${packageData.versions.length} versions`);
@@ -237,7 +289,7 @@ async function main() {
 }
 
 // Only run main() when this file is executed directly (e.g. `tsx scripts/fetch-metadata.ts`),
-// not when it's merely imported (e.g. by tests importing `detectEsmSupport`).
+// not when it's merely imported by tests.
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('Fatal error:', error);

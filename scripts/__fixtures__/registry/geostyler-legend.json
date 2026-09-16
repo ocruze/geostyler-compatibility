@@ -1,0 +1,44 @@
+{
+  "name": "geostyler-legend",
+  "dist-tags": {
+    "next": "5.0.0-next.4",
+    "latest": "5.2.1"
+  },
+  "time": {
+    "5.2.0": "2025-08-14T07:49:40.957Z",
+    "5.2.1": "2026-02-02T12:53:52.653Z"
+  },
+  "versions": {
+    "5.2.0": {
+      "name": "geostyler-legend",
+      "version": "5.2.0",
+      "main": "dist/index.js",
+      "types": "./dist/index.d.ts",
+      "type": "module",
+      "dependencies": {
+        "@types/d3-selection": "^3.0.11",
+        "geostyler-openlayers-parser": "5.1.2"
+      },
+      "peerDependencies": {
+        "d3": ">=6",
+        "ol": ">=6"
+      }
+    },
+    "5.2.1": {
+      "name": "geostyler-legend",
+      "version": "5.2.1",
+      "main": "dist/index.js",
+      "types": "./dist/index.d.ts",
+      "type": "module",
+      "dependencies": {
+        "@types/d3-selection": "^3.0.11",
+        "geostyler-openlayers-parser": "^5.4.0",
+        "geostyler-style": "^11.0.2"
+      },
+      "peerDependencies": {
+        "d3": ">=6",
+        "ol": ">=6"
+      }
+    }
+  }
+}
