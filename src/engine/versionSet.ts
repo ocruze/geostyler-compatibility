@@ -31,7 +31,9 @@ export type Anchors = Partial<Record<CorePackage, PackageVersion>>;
 // The stack package whose removal moves the anchor furthest forward.
 export interface Bottleneck {
   name: string;
-  newest: PackageVersion;
+  // The version the set could not keep: the newest candidate, or the pin.
+  held: PackageVersion;
+  pinned: boolean;
   core: CorePackage;
   anchorWithout: PackageVersion;
 }
@@ -72,6 +74,10 @@ export interface NoSet extends ResultBase {
 }
 
 export type VersionSetResult = ({ status: 'found'; set: VersionSet } & ResultBase) | NoSet;
+
+// A set before its bottleneck is known.
+type SearchSet = Omit<VersionSet, 'bottleneck'>;
+type SearchResult = Omit<NoSet, 'partial'> | ({ status: 'found'; set: SearchSet } & ResultBase);
 
 // Exactly the stack at its chosen versions; a core package appears only when it is in the stack.
 export function installCommand(versions: PackageVersion[]): string {
@@ -149,6 +155,15 @@ function chooseForAnchors({ stack, candidates, pins }: SearchInput, anchors: Anc
   }
 
   if (chosen.size !== stack.length) return null;
+  // A pin outside the anchors is only in when a chosen version declares it, like any other package.
+  for (const pinned of pins.values()) {
+    if (acceptsAnchors(pinned, anchors)) continue;
+    const declared = [...chosen.values()].some((c) => {
+      const range = c.declaredDependencies[pinned.name];
+      return range !== undefined && satisfies(pinned.version, range);
+    });
+    if (!declared) return null;
+  }
   return stack.map((pkg) => chosen.get(pkg.name)!);
 }
 
@@ -181,7 +196,7 @@ function findPinToRelax(failing: StackPair[], pins: Map<string, PackageVersion>)
 }
 
 // Anchors newest-first, geostyler-style outer and geostyler-data inner; the first accepted set wins.
-function search(packages: Package[], stackNames: string[], options: VersionSetOptions): Omit<NoSet, 'partial'> | Extract<VersionSetResult, { status: 'found' }> {
+function search(packages: Package[], stackNames: string[], options: VersionSetOptions): SearchResult {
   const includePrereleases = options.includePrereleases ?? false;
   const stack = stackNames
     .map((name) => packages.find((p) => p.name === name))
@@ -209,9 +224,7 @@ function search(packages: Package[], stackNames: string[], options: VersionSetOp
       if (!chosen) continue;
       const pairs = evaluateSet(chosen);
       const count = rejected(pairs).length;
-      if (count === 0) {
-        return { status: 'found', set: { anchors, versions: chosen, newest, pairs, bottleneck: null }, ignoredPins };
-      }
+      if (count === 0) return { status: 'found', set: { anchors, versions: chosen, newest, pairs }, ignoredPins };
       if (!closest || count < closest.rejected) closest = { pairs, rejected: count };
     }
   }
@@ -221,42 +234,52 @@ function search(packages: Package[], stackNames: string[], options: VersionSetOp
   return { status: 'none', failing, pinToRelax: findPinToRelax(failing, pins), ignoredPins };
 }
 
+const searchWithout = (packages: Package[], stackNames: string[], options: VersionSetOptions, name: string) =>
+  search(packages, stackNames.filter((n) => n !== name), options);
+
 // The pin to relax first, then each stack package in order: the first removal that leaves a set wins.
 function partialSet(packages: Package[], stackNames: string[], options: VersionSetOptions, first: string | undefined): PartialSet | null {
   if (stackNames.length < 2) return null;
   const order = first ? [first, ...stackNames.filter((name) => name !== first)] : stackNames;
   for (const removed of order) {
-    const result = search(packages, stackNames.filter((name) => name !== removed), options);
-    if (result.status === 'found') return { removed, set: result.set };
+    const result = searchWithout(packages, stackNames, options, removed);
+    if (result.status === 'found') {
+      const rest = stackNames.filter((name) => name !== removed);
+      return { removed, set: { ...result.set, bottleneck: findBottleneck(packages, rest, options, result.set) } };
+    }
   }
   return null;
 }
 
-// Only when some chosen version is not the newest; the anchor compared is the first core the set constrains.
-function findBottleneck(packages: Package[], stackNames: string[], options: VersionSetOptions, set: VersionSet): Bottleneck | null {
+// Only when a newest version was passed over; the anchor compared is geostyler-style's when the set has one.
+function findBottleneck(packages: Package[], stackNames: string[], options: VersionSetOptions, set: SearchSet): Bottleneck | null {
   if (stackNames.length < 2 || set.versions.every((v, i) => v === set.newest[i])) return null;
   const core = CORE_PACKAGES.find((c) => set.anchors[c] !== undefined);
   const current = core && set.anchors[core];
   if (!core || !current) return null;
 
-  let best: Bottleneck | null = null;
-  stackNames.forEach((name, i) => {
-    const result = search(packages, stackNames.filter((n) => n !== name), options);
+  // On an equal anchor the package that was passed over wins, then stack order.
+  let best: (Bottleneck & { passedOver: boolean }) | null = null;
+  for (const [i, name] of stackNames.entries()) {
+    const result = searchWithout(packages, stackNames, options, name);
     const anchor = result.status === 'found' ? result.set.anchors[core] : undefined;
-    if (!anchor || compareVersions(anchor.version, current.version) <= 0) return;
-    if (!best || compareVersions(anchor.version, best.anchorWithout.version) > 0) {
-      best = { name, newest: set.newest[i], core, anchorWithout: anchor };
+    if (!anchor || compareVersions(anchor.version, current.version) <= 0) continue;
+    const passedOver = set.versions[i] !== set.newest[i];
+    const gain = best ? compareVersions(anchor.version, best.anchorWithout.version) : 1;
+    if (gain > 0 || (gain === 0 && passedOver && !best!.passedOver)) {
+      const pinned = options.pins?.[name] === set.versions[i].version;
+      best = { name, held: pinned ? set.versions[i] : set.newest[i], pinned, core, anchorWithout: anchor, passedOver };
     }
-  });
-  return best;
+  }
+  if (!best) return null;
+  return { name: best.name, held: best.held, pinned: best.pinned, core: best.core, anchorWithout: best.anchorWithout };
 }
 
 export function bottleneckSentence({ anchors, bottleneck }: VersionSet): string | null {
   if (!bottleneck) return null;
-  const { name, newest, core, anchorWithout } = bottleneck;
-  const range = newest.coreRanges[core];
-  const needs = range.source === 'none' ? 'no' : `${core} ${range.range}`;
-  return `${name} holds the set at ${versionLabel(anchors[core]!)}. Without it the set would move to ${versionLabel(anchorWithout)}; its newest release ${newest.version} (${needs}) fits no newer set.`;
+  const { name, held, pinned, core, anchorWithout } = bottleneck;
+  const kept = pinned ? `its pinned version ${held.version}` : `its newest release ${held.version}`;
+  return `${name} holds the set at ${versionLabel(anchors[core]!)}. Without it the set would move to ${versionLabel(anchorWithout)}; no set at that anchor keeps ${kept}.`;
 }
 
 export function buildVersionSet(packages: Package[], stackNames: string[], options: VersionSetOptions = {}): VersionSetResult {
