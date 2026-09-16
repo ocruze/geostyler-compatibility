@@ -1,9 +1,9 @@
 import { evaluatePair, type PairEvaluation } from '@/engine/evaluatePair';
+import { candidateVersions } from '@/engine/versionSet';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
-// Versions are newest-first; a package with no stable release uses its newest prerelease.
 export function latestStableVersion(pkg: Package): PackageVersion | undefined {
-  return pkg.versions.find((v) => !v.isPrerelease) ?? pkg.versions[0];
+  return candidateVersions(pkg)[0];
 }
 
 export interface LatestReleasesGrid {
