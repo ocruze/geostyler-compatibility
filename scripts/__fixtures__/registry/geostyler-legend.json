@@ -5,10 +5,25 @@
     "latest": "5.2.1"
   },
   "time": {
+    "2.2.0": "2022-06-20T13:24:33.659Z",
     "5.2.0": "2025-08-14T07:49:40.957Z",
     "5.2.1": "2026-02-02T12:53:52.653Z"
   },
   "versions": {
+    "2.2.0": {
+      "name": "geostyler-legend",
+      "version": "2.2.0",
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "dependencies": {
+        "@types/d3-selection": "^3.0.1",
+        "geostyler-openlayers-parser": "^3.0.0"
+      },
+      "peerDependencies": {
+        "d3": "^6.7.0",
+        "ol": "^6.5.0"
+      }
+    },
     "5.2.0": {
       "name": "geostyler-legend",
       "version": "5.2.0",

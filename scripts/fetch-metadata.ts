@@ -16,6 +16,8 @@ import type {
   PackageCategory,
   StyleFormat,
   DataFormat,
+  CorePackage,
+  CoreRange,
   CoreRanges,
   ModuleSystem,
 } from '../src/types/compatibility.js';
@@ -233,6 +235,47 @@ export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: stri
 }
 
 /**
+ * A version with no core range inherits one through its declared dependencies on tracked
+ * packages: newest version satisfying the declared range, repeated until a declared range is
+ * found or the chain ends. Pure: returns new records, resolved within `packages` only.
+ */
+export function resolveTransitiveCoreRanges(packages: Package[]): Package[] {
+  const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
+
+  const newestSatisfying = (name: string, range: string): PackageVersion | undefined =>
+    byName.get(name)?.versions.find((v) => semver.satisfies(v.version, range));
+
+  const resolve = (version: PackageVersion, core: CorePackage, visited: Set<string>): CoreRange => {
+    const own = version.coreRanges[core];
+    if (own.source === 'declared') return { source: 'transitive', range: own.range, origin: { name: version.name, version: version.version } };
+    const key = `${version.name}@${version.version}`;
+    if (visited.has(key)) return { source: 'none' };
+    visited.add(key);
+    for (const [name, range] of Object.entries(version.declaredDependencies).sort()) {
+      if (CORE_PACKAGES.includes(name as CorePackage)) continue;
+      const dependency = newestSatisfying(name, range);
+      if (!dependency) continue;
+      const found = resolve(dependency, core, visited);
+      if (found.source !== 'none') return found;
+    }
+    return { source: 'none' };
+  };
+
+  return packages.map((pkg) => ({
+    ...pkg,
+    versions: pkg.versions.map((version) => ({
+      ...version,
+      coreRanges: Object.fromEntries(
+        CORE_PACKAGES.map((core) => {
+          const own = version.coreRanges[core];
+          return [core, own.source === 'none' ? resolve(version, core, new Set()) : own];
+        }),
+      ) as CoreRanges,
+    })),
+  }));
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -270,7 +313,7 @@ async function main() {
   }
   
   // Write output
-  const dataset: Dataset = { generatedAt: new Date().toISOString(), packages };
+  const dataset: Dataset = { generatedAt: new Date().toISOString(), packages: resolveTransitiveCoreRanges(packages) };
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(dataset, null, 2));
   
   console.log(`\n✓ Successfully wrote ${packages.length} packages to ${OUTPUT_FILE}`);

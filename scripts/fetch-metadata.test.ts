@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { detectEsmSupport, detectModuleSystem, processNpmData } from './fetch-metadata';
+import { detectEsmSupport, detectModuleSystem, processNpmData, resolveTransitiveCoreRanges } from './fetch-metadata';
+import type { Package, PackageVersion } from '../src/types/compatibility';
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '__fixtures__/registry');
 
@@ -97,6 +98,85 @@ describe('processNpmData', () => {
     expect(pkg.category).toBe('ui');
     expect(pkg.latestVersion).toBe('5.2.1');
     expect(pkg.repositoryUrl).toBe('https://github.com/geostyler/geostyler-legend');
-    expect(pkg.versions.map((v) => v.version)).toEqual(['5.2.1', '5.2.0']);
+    expect(pkg.versions.map((v) => v.version)).toEqual(['5.2.1', '5.2.0', '2.2.0']);
+  });
+});
+
+describe('resolveTransitiveCoreRanges', () => {
+  const dataset = () => resolveTransitiveCoreRanges(
+    ['geostyler-legend', 'geostyler-openlayers-parser', 'geostyler'].map((name) => processNpmData(registry(name), name)),
+  );
+  const resolved = (name: string, version: string) => {
+    const found = dataset().find((p) => p.name === name)?.versions.find((v) => v.version === version);
+    if (!found) throw new Error(`${name}@${version} missing from fixture`);
+    return found;
+  };
+
+  it('legend 5.2.0 resolves geostyler-style ^10.3.0 from openlayers-parser 5.1.2', () => {
+    expect(resolved('geostyler-legend', '5.2.0').coreRanges['geostyler-style']).toEqual({
+      source: 'transitive',
+      range: '^10.3.0',
+      origin: { name: 'geostyler-openlayers-parser', version: '5.1.2' },
+    });
+  });
+
+  it('picks the newest version satisfying the declared range', () => {
+    expect(resolved('geostyler-legend', '2.2.0').coreRanges['geostyler-style']).toEqual({
+      source: 'transitive',
+      range: '^6.0.0',
+      origin: { name: 'geostyler-openlayers-parser', version: '3.2.0' },
+    });
+  });
+
+  it('leaves declared ranges and ranges nothing resolves untouched', () => {
+    expect(resolved('geostyler-legend', '5.2.1').coreRanges['geostyler-style']).toEqual({ source: 'declared', range: '^11.0.2' });
+    expect(resolved('geostyler-legend', '5.2.0').coreRanges['geostyler-data']).toEqual({ source: 'none' });
+    expect(resolved('geostyler-openlayers-parser', '5.1.2').coreRanges['geostyler-style']).toEqual({ source: 'declared', range: '^10.3.0' });
+  });
+
+  it('stays none when the dependency is not in the dataset', () => {
+    const [legend] = resolveTransitiveCoreRanges([processNpmData(registry('geostyler-legend'), 'geostyler-legend')]);
+    expect(legend.versions.find((v) => v.version === '5.2.0')?.coreRanges['geostyler-style']).toEqual({ source: 'none' });
+  });
+
+  it('does not change the input records', () => {
+    const input = processNpmData(registry('geostyler-legend'), 'geostyler-legend');
+    resolveTransitiveCoreRanges([input, processNpmData(registry('geostyler-openlayers-parser'), 'geostyler-openlayers-parser')]);
+    expect(input.versions.find((v) => v.version === '5.2.0')?.coreRanges['geostyler-style']).toEqual({ source: 'none' });
+  });
+
+  // No tracked package chains through two hops today; a minimal dataset covers the walk and its cycle guard.
+  const minimal = (name: string, version: string, declared: Record<string, string>, style?: string): PackageVersion => ({
+    ...versionOf('geostyler-legend', '5.2.0'),
+    name,
+    version,
+    category: 'ui',
+    declaredDependencies: declared,
+    coreRanges: {
+      'geostyler-style': style ? { source: 'declared', range: style } : { source: 'none' },
+      'geostyler-data': { source: 'none' },
+    },
+  });
+  const asPackage = (name: string, ...versions: PackageVersion[]): Package => ({
+    name, category: 'ui', versions, latestVersion: versions[0].version, repositoryUrl: '',
+  });
+
+  it('follows the chain until a declared range is found', () => {
+    const [a] = resolveTransitiveCoreRanges([
+      asPackage('a', minimal('a', '1.0.0', { b: '^1.0.0' })),
+      asPackage('b', minimal('b', '1.0.0', { c: '^2.0.0' })),
+      asPackage('c', minimal('c', '2.3.0', {}, '^9.0.0'), minimal('c', '2.1.0', {}, '^8.0.0')),
+    ]);
+    expect(a.versions[0].coreRanges['geostyler-style']).toEqual({
+      source: 'transitive', range: '^9.0.0', origin: { name: 'c', version: '2.3.0' },
+    });
+  });
+
+  it('stops on a cycle', () => {
+    const [a] = resolveTransitiveCoreRanges([
+      asPackage('a', minimal('a', '1.0.0', { b: '^1.0.0' })),
+      asPackage('b', minimal('b', '1.0.0', { a: '^1.0.0' })),
+    ]);
+    expect(a.versions[0].coreRanges['geostyler-style']).toEqual({ source: 'none' });
   });
 });
