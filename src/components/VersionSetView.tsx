@@ -7,7 +7,9 @@ import { CORE_PACKAGES } from '@/constants/repos';
 import { buildVersionSet, stackPairSentence, versionLabel, type Anchors, type StackPair } from '@/engine';
 import type { CoreRange, Package, PackageVersion } from '@/types/compatibility';
 
+import { InstallLine } from './InstallLine';
 import { VerdictTag } from './Verdict';
+import { usePrereleases } from './prereleases';
 
 const { Text, Title } = Typography;
 
@@ -81,7 +83,11 @@ function PairList({ pairs }: { pairs: StackPair[] }) {
 }
 
 export function VersionSetView({ packages, stack }: { packages: Package[]; stack: string[] }) {
-  const result = useMemo(() => buildVersionSet(packages, stack), [packages, stack]);
+  const [includePrereleases] = usePrereleases();
+  const result = useMemo(
+    () => buildVersionSet(packages, stack, { includePrereleases }),
+    [packages, stack, includePrereleases],
+  );
 
   if (result.status !== 'found') {
     return (
@@ -108,6 +114,7 @@ export function VersionSetView({ packages, stack }: { packages: Package[]; stack
         dataSource={rows}
         scroll={{ x: 'max-content' }}
       />
+      <InstallLine versions={set.versions} />
       <AnchorLine anchors={set.anchors} />
       <PairList pairs={set.pairs} />
     </Flex>

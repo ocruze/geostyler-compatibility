@@ -18,7 +18,7 @@ const router = createRouter({
       subTitle="The page you are looking for does not exist."
       extra={
         <Button type="primary" href={import.meta.env.BASE_URL}>
-          Back to Overview
+          Back to the stack builder
         </Button>
       }
     />
@@ -30,7 +30,7 @@ const router = createRouter({
       subTitle={error.message}
       extra={
         <Button type="primary" href={import.meta.env.BASE_URL}>
-          Back to Overview
+          Back to the stack builder
         </Button>
       }
     />

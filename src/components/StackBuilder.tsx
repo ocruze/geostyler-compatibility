@@ -63,8 +63,8 @@ export function StackBuilder({ packages, stack, onStackChange }: StackBuilderPro
           <>
             <Title level={5}>Latest releases</Title>
             <Paragraph type="secondary">
-              Tick the packages you use to get a version set. Until then, here is the latest stable release of every
-              tracked package against every other. Select a cell to see how the verdict was reached.
+              Tick the packages you use to get a version set. Until then, here is the latest release of every tracked
+              package against every other. Select a cell to see how the verdict was reached.
             </Paragraph>
             <LatestReleasesGrid packages={packages} />
           </>
