@@ -48,7 +48,18 @@ export function VerdictCell({ evaluation, onOpen }: VerdictCellProps) {
   );
 }
 
-const rangeText = (r: CoreRange) => (r.source === 'none' ? <Text type="secondary">none</Text> : <code>{r.range}</code>);
+function rangeText(r: CoreRange) {
+  if (r.source === 'none') return <Text type="secondary">none</Text>;
+  if (r.source === 'declared') return <code>{r.range}</code>;
+  return (
+    <Flex vertical>
+      <code>{r.range}</code>
+      <Text type="secondary">
+        inherited from {r.origin.name} {r.origin.version}
+      </Text>
+    </Flex>
+  );
+}
 
 const OUTCOME_LABEL: Record<CoreAxis['outcome'], string> = {
   intersect: 'Intersect',
