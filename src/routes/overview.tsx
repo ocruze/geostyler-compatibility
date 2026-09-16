@@ -1,13 +1,11 @@
 import { GithubOutlined, LinkOutlined } from '@ant-design/icons';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Alert, Button, Card, Col, Flex, Row, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Col, Flex, Row, Space, Spin, Statistic, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect } from 'react';
 
-import { useCompatibilityMatrix, usePackages } from '@/api/queries';
+import { usePackages } from '@/api/queries';
 import type { Package, PackageCategory } from '@/types/compatibility';
-
-const { Text } = Typography;
 
 type CategoryFilter = PackageCategory | 'all';
 type EsmFilter = 'all' | 'esm' | 'cjs';
@@ -43,7 +41,6 @@ export const Route = createFileRoute('/overview')({
 
 function Overview() {
   const { data: packages, isLoading: packagesLoading, error: packagesError } = usePackages();
-  const { data: matrix, isLoading: matrixLoading, error: matrixError } = useCompatibilityMatrix();
   const { category, module } = Route.useSearch();  
   const selectedCategory: CategoryFilter = category ?? 'all';
   const esmFilter: EsmFilter = module ?? 'all';
@@ -52,22 +49,22 @@ function Overview() {
     document.title = 'Overview · GeoStyler Compatibility';
   }, []);  
 
-  if (packagesLoading || matrixLoading) {
+  if (packagesLoading) {
     return <Spin size="large" className="centered-spin" />;
   }
 
-  if (packagesError || matrixError) {
+  if (packagesError) {
     return (
       <Alert
         type="error"
         showIcon
         title="Error Loading Data"
-        description={packagesError?.message || matrixError?.message || 'Unknown error'}
+        description={packagesError?.message || 'Unknown error'}
       />
     );
   }
 
-  if (!packages || !matrix) {
+  if (!packages) {
     return <Card>No data available</Card>;
   }
   const isFiltered = selectedCategory !== 'all' || esmFilter !== 'all';
@@ -87,10 +84,6 @@ function Overview() {
               </Col>
             ))}
           </Row>
-
-          <Text type="secondary">
-            Last updated: {new Date(matrix.generated).toLocaleString()}
-          </Text>
         </Flex>
       </Card>
 

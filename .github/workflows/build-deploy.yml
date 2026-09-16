@@ -51,6 +51,10 @@ jobs:
             - name: Build site
               run: npm run build
 
+            # GitHub Pages serves 404.html for unknown paths; a copy of the entry page makes deep links load the app
+            - name: Copy entry page to 404.html
+              run: cp dist/index.html dist/404.html
+
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v4
               with:

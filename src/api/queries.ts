@@ -1,15 +1,19 @@
-import type { Package, CompatibilityMatrix, PackageVersion } from '@/types/compatibility';
+import type { Package, CompatibilityMatrix, Dataset, PackageVersion } from '@/types/compatibility';
 import packagesData from '@/data/packages.json';
 import compatibilityData from '@/data/compatibility-matrix.json';
 import { intersectRanges } from '@/utils/semver';
 import * as semver from 'semver';
+
+const dataset = packagesData as Dataset;
+
+export const datasetGeneratedAt = dataset.generatedAt;
 
 /**
  * Hook to fetch all packages
  */
 export function usePackages() {
   return {
-    data: packagesData as Package[],
+    data: dataset.packages,
     isLoading: false,
     error: null as Error | null,
   };

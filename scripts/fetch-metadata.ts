@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { REPOS, REPO_TO_NPM } from '../src/constants/repos.js';
-import type { Package, PackageVersion, PackageCategory, StyleFormat, DataFormat } from '../src/types/compatibility.js';
+import type { Dataset, Package, PackageVersion, PackageCategory, StyleFormat, DataFormat } from '../src/types/compatibility.js';
 import * as semver from 'semver';
 import { ProxyAgent } from 'undici';
 
@@ -224,7 +224,8 @@ async function main() {
   }
   
   // Write output
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(packages, null, 2));
+  const dataset: Dataset = { generatedAt: new Date().toISOString(), packages };
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(dataset, null, 2));
   
   console.log(`\n✓ Successfully wrote ${packages.length} packages to ${OUTPUT_FILE}`);
   console.log(`Total versions: ${packages.reduce((sum, pkg) => sum + pkg.versions.length, 0)}`);

@@ -17,7 +17,7 @@ A web interface for checking compatibility between GeoStyler packages — style 
 
 1. **Fetch Metadata** ([scripts/fetch-metadata.ts](scripts/fetch-metadata.ts))
    - Pulls package data from npm registry
-   - Outputs: `src/data/packages.json`
+   - Outputs: `src/data/packages.json` (`{ generatedAt, packages }`; the app footer shows `generatedAt` as a UTC date)
 
 2. **Compute Compatibility** ([scripts/compute-compatibility.ts](scripts/compute-compatibility.ts))
    - Analyzes geostyler-style version ranges
@@ -74,7 +74,7 @@ npm install
 The site automatically deploys to GitHub Pages via GitHub Actions:
 
 - **Trigger**: Push to `main`, daily at midnight UTC, or manual dispatch
-- **Build**: Fetches fresh package data, computes compatibility, builds SPA
+- **Build**: Fetches fresh package data, computes compatibility, builds SPA, then copies `dist/index.html` to `dist/404.html` so GitHub Pages serves the app for deep links
 - **Deploy**: Uploads `./dist` as a Pages artifact via `actions/upload-pages-artifact` + `actions/deploy-pages` — no `gh-pages` branch
 
 ### GitHub Actions Workflow

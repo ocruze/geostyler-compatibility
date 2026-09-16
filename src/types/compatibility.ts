@@ -60,6 +60,11 @@ export interface Package {
   repositoryUrl: string;
 }
 
+export interface Dataset {
+  generatedAt: string; // ISO timestamp
+  packages: Package[];
+}
+
 /**
  * Compatibility conflict types
  */
