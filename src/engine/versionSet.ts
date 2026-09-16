@@ -1,6 +1,6 @@
 import { CORE_PACKAGES, isCorePackage } from '@/constants/repos';
 import type { CorePackage, Package, PackageVersion, Verdict } from '@/types/compatibility';
-import { intersectRanges, satisfies } from '@/utils/semver';
+import { compareVersions, intersectRanges, satisfies } from '@/utils/semver';
 
 import { EXPECTED_CORES, evaluatePair, type PairEvaluation } from './evaluatePair';
 import { shippedTogetherSentence, verdictSentence, versionLabel } from './verdictSentence';
@@ -28,6 +28,14 @@ export interface StackPair {
 // Only the cores some stack package constrains.
 export type Anchors = Partial<Record<CorePackage, PackageVersion>>;
 
+// The stack package whose removal moves the anchor furthest forward.
+export interface Bottleneck {
+  name: string;
+  newest: PackageVersion;
+  core: CorePackage;
+  anchorWithout: PackageVersion;
+}
+
 export interface VersionSet {
   anchors: Anchors;
   // Chosen versions, in stack order.
@@ -35,6 +43,7 @@ export interface VersionSet {
   // Newest candidate of each stack package, in stack order.
   newest: PackageVersion[];
   pairs: StackPair[];
+  bottleneck: Bottleneck | null;
 }
 
 export interface PartialSet {
@@ -200,7 +209,9 @@ function search(packages: Package[], stackNames: string[], options: VersionSetOp
       if (!chosen) continue;
       const pairs = evaluateSet(chosen);
       const count = rejected(pairs).length;
-      if (count === 0) return { status: 'found', set: { anchors, versions: chosen, newest, pairs }, ignoredPins };
+      if (count === 0) {
+        return { status: 'found', set: { anchors, versions: chosen, newest, pairs, bottleneck: null }, ignoredPins };
+      }
       if (!closest || count < closest.rejected) closest = { pairs, rejected: count };
     }
   }
@@ -221,8 +232,37 @@ function partialSet(packages: Package[], stackNames: string[], options: VersionS
   return null;
 }
 
+// Only when some chosen version is not the newest; the anchor compared is the first core the set constrains.
+function findBottleneck(packages: Package[], stackNames: string[], options: VersionSetOptions, set: VersionSet): Bottleneck | null {
+  if (stackNames.length < 2 || set.versions.every((v, i) => v === set.newest[i])) return null;
+  const core = CORE_PACKAGES.find((c) => set.anchors[c] !== undefined);
+  const current = core && set.anchors[core];
+  if (!core || !current) return null;
+
+  let best: Bottleneck | null = null;
+  stackNames.forEach((name, i) => {
+    const result = search(packages, stackNames.filter((n) => n !== name), options);
+    const anchor = result.status === 'found' ? result.set.anchors[core] : undefined;
+    if (!anchor || compareVersions(anchor.version, current.version) <= 0) return;
+    if (!best || compareVersions(anchor.version, best.anchorWithout.version) > 0) {
+      best = { name, newest: set.newest[i], core, anchorWithout: anchor };
+    }
+  });
+  return best;
+}
+
+export function bottleneckSentence({ anchors, bottleneck }: VersionSet): string | null {
+  if (!bottleneck) return null;
+  const { name, newest, core, anchorWithout } = bottleneck;
+  const range = newest.coreRanges[core];
+  const needs = range.source === 'none' ? 'no' : `${core} ${range.range}`;
+  return `${name} holds the set at ${versionLabel(anchors[core]!)}. Without it the set would move to ${versionLabel(anchorWithout)}; its newest release ${newest.version} (${needs}) fits no newer set.`;
+}
+
 export function buildVersionSet(packages: Package[], stackNames: string[], options: VersionSetOptions = {}): VersionSetResult {
   const result = search(packages, stackNames, options);
-  if (result.status === 'found') return result;
-  return { ...result, partial: partialSet(packages, stackNames, options, result.pinToRelax?.name) };
+  if (result.status === 'none') {
+    return { ...result, partial: partialSet(packages, stackNames, options, result.pinToRelax?.name) };
+  }
+  return { ...result, set: { ...result.set, bottleneck: findBottleneck(packages, stackNames, options, result.set) } };
 }
