@@ -3,7 +3,7 @@ import { Layout } from 'antd';
 import { CheckCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 
 import { datasetGeneratedAt } from '@/api/queries';
-import { PrereleaseProvider, PrereleaseToggle } from '@/components/prereleases';
+import { PrereleaseProvider, PrereleaseToggle } from '@/components/PrereleaseToggle';
 import { formatUtcDate } from '@/utils/date';
 
 const { Header, Content, Footer } = Layout;
