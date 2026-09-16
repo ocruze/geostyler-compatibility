@@ -1,6 +1,6 @@
 import * as semver from 'semver';
 
-import { CORE_PACKAGES } from '@/constants/repos';
+import { CORE_PACKAGES, isCorePackage } from '@/constants/repos';
 import type {
   CorePackage,
   CoreRange,
@@ -11,7 +11,7 @@ import type {
 import { intersectRanges, satisfies } from '@/utils/semver';
 
 // A missing range on one of these is Unknown; a missing range elsewhere is not an axis.
-const EXPECTED_CORES: Record<PackageCategory, CorePackage[]> = {
+export const EXPECTED_CORES: Record<PackageCategory, CorePackage[]> = {
   core: [],
   ui: ['geostyler-style'],
   'style-parser': ['geostyler-style'],
@@ -94,7 +94,7 @@ function coreAxis(core: CorePackage, a: PackageVersion, b: PackageVersion): Core
 
 function declaredAxis(from: PackageVersion, to: PackageVersion): DeclaredDependencyAxis | null {
   // A range on a core package is the core axis, not a declared dependency.
-  if (CORE_PACKAGES.includes(to.name as CorePackage)) return null;
+  if (isCorePackage(to.name)) return null;
   const range = from.declaredDependencies[to.name];
   if (!range) return null;
   return { from: from.name, to: to.name, range, version: to.version, satisfied: satisfies(to.version, range) };

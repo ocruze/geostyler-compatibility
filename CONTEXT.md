@@ -49,11 +49,11 @@ _Avoid_: selection, selected packages
 A version the user fixes for one package in their stack. The recommendation must keep it.
 
 **Version set**:
-One version per package in the stack. The landing page's output when every pair in it is Compatible or Shipped together.
+One version per package in the stack. The landing page's output when every pair in it is Compatible, Shipped together or Independent.
 _Avoid_: combination, recommended versions
 
 **Anchor**:
-The `geostyler-style` version a version set agrees on. The engine searches anchors newest-first.
+The core package version a version set agrees on, one per core package the stack constrains. The engine searches anchors newest-first, `geostyler-style` outer and `geostyler-data` inner.
 
 **Bottleneck**:
 The package in a stack whose available ranges prevent a newer version set. Always named alongside a version set that is not the newest possible.

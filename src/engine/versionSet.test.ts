@@ -16,10 +16,12 @@ const wfs = fxPackage('geostyler-wfs-parser', '3.0.1');
 
 const packages: Package[] = [style, ui, sld, mapbox, qgis, openlayers, data, geojson, wfs];
 
-const chosen = (result: ReturnType<typeof buildVersionSet>) => {
+const found = (result: ReturnType<typeof buildVersionSet>) => {
   if (result.status !== 'found') throw new Error(`expected a version set, got ${result.status}`);
-  return Object.fromEntries(result.set.versions.map((v) => [v.name, v.version]));
+  return result.set;
 };
+const chosen = (result: ReturnType<typeof buildVersionSet>) =>
+  Object.fromEntries(found(result).versions.map((v) => [v.name, v.version]));
 
 const prerelease = (base: PackageVersion, version: string, range: string): PackageVersion => ({
   ...base,
@@ -36,11 +38,11 @@ describe('buildVersionSet', () => {
       'geostyler-sld-parser': '8.5.0',
       'geostyler-mapbox-parser': '6.2.0',
     });
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.anchors['geostyler-style'].version).toBe('11.1.0');
+    const set = found(result);
+    expect(set.anchors['geostyler-style']?.version).toBe('11.1.0');
 
     const pair = (a: string, b: string) =>
-      result.set.pairs.find((p) => [p.a.name, p.b.name].sort().join() === [a, b].sort().join());
+      set.pairs.find((p) => [p.a.name, p.b.name].sort().join() === [a, b].sort().join());
     expect(pair('geostyler', 'geostyler-mapbox-parser')?.verdict).toBe('shipped-together');
     // Two parsers geostyler declares in satisfied ranges are shipped together through it.
     const parsers = pair('geostyler-sld-parser', 'geostyler-mapbox-parser');
@@ -55,30 +57,34 @@ describe('buildVersionSet', () => {
   it('agrees two data parsers on a geostyler-data anchor', () => {
     const result = buildVersionSet(packages, ['geostyler-geojson-parser', 'geostyler-wfs-parser']);
     expect(chosen(result)).toEqual({ 'geostyler-geojson-parser': '2.0.0', 'geostyler-wfs-parser': '3.0.1' });
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.anchors['geostyler-data'].version).toBe('1.1.0');
-    expect(result.set.pairs[0].verdict).toBe('compatible');
+    expect(found(result).anchors['geostyler-data']?.version).toBe('1.1.0');
+    expect(found(result).pairs[0].verdict).toBe('compatible');
+  });
+
+  it('lowers the geostyler-data anchor when a data parser needs it', () => {
+    const oldGeojson = fxPackage('geostyler-geojson-parser', '1.0.0');
+    const result = buildVersionSet([style, data, oldGeojson, wfs], ['geostyler-geojson-parser', 'geostyler-wfs-parser']);
+    expect(chosen(result)).toEqual({ 'geostyler-geojson-parser': '1.0.0', 'geostyler-wfs-parser': '3.0.1' });
+    expect(found(result).anchors['geostyler-data']?.version).toBe('1.0.0');
+    expect(found(result).anchors['geostyler-style']).toBeUndefined();
   });
 
   it('builds a parsers-only set without a UI package', () => {
     const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-openlayers-parser']);
     expect(chosen(result)).toEqual({ 'geostyler-sld-parser': '8.4.2', 'geostyler-openlayers-parser': '5.7.1' });
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.anchors['geostyler-style'].version).toBe('11.1.0');
+    expect(found(result).anchors['geostyler-style']?.version).toBe('11.1.0');
   });
 
   it('falls back to an older anchor when the newest parsers disagree', () => {
     const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-qgis-parser']);
     expect(chosen(result)).toEqual({ 'geostyler-sld-parser': '8.2.0', 'geostyler-qgis-parser': '4.1.0' });
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.anchors['geostyler-style'].version).toBe('10.5.0');
+    expect(found(result).anchors['geostyler-style']?.version).toBe('10.5.0');
   });
 
   it('takes the newest of each when every pair is Independent', () => {
     const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-geojson-parser']);
     expect(chosen(result)).toEqual({ 'geostyler-sld-parser': '9.0.3', 'geostyler-geojson-parser': '2.0.0' });
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.pairs[0].verdict).toBe('independent');
+    expect(found(result).pairs[0].verdict).toBe('independent');
   });
 
   it('gives a core package in the stack the anchor version', () => {
@@ -108,8 +114,7 @@ describe('buildVersionSet', () => {
 
   it('lists the newest available version next to each chosen one', () => {
     const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-qgis-parser']);
-    if (result.status !== 'found') throw new Error();
-    expect(result.set.versions.map((v) => v.version)).toEqual(['8.2.0', '4.1.0']);
-    expect(result.set.newest.map((v) => v.version)).toEqual(['9.0.3', '4.1.0']);
+    expect(found(result).versions.map((v) => v.version)).toEqual(['8.2.0', '4.1.0']);
+    expect(found(result).newest.map((v) => v.version)).toEqual(['9.0.3', '4.1.0']);
   });
 });

@@ -5,6 +5,10 @@ status: accepted (2026-09-16), supersedes ADR-0003
 
 A pair of package versions is evaluated on three axes: the core-package ranges they declare (`geostyler-style`, `geostyler-data`), a declared dependency of one on the other, and any external peer they share (`ol`, `react`, `d3`). The aggregate is one of seven verdicts: Conflict, Risk, Duplicate, Compatible, Shipped together, Independent, Unknown (definitions in `CONTEXT.md`). Only a shared-peer Conflict breaks `npm install`; a core-range mismatch is a schema risk, because every package pulls its core package as a regular dependency and npm installs two copies. The two-state model called that "cannot be used together", which contradicted upstream: `geostyler@18.6.0` declares `geostyler-mapbox-parser@^6.1.1` while their `geostyler-style` ranges differ, so that pair is Shipped together and counts as compatible for recommendations. Pairs with no shared axis are Independent and pairs with no resolvable core range are Unknown; neither renders as a pass. ESM/CJS is no longer an axis: every tracked latest release is ESM and the only warnings came from a types-only package.
 
+## Amendment (2026-09-16)
+
+In a version set, a Risk pair counts as Shipped together when a third chosen version declares both members in satisfied ranges: `geostyler@18.6.0` declares `geostyler-sld-parser@^8.4.2` and `geostyler-mapbox-parser@^6.1.1`, so upstream ships that parser pair even though their `geostyler-style` ranges differ. The pair verdict itself stays Risk; only the stack builder applies the rule, and it names the declaring version.
+
 ## Considered options
 
 Keeping a binary verdict with declared dependencies as an override was rejected because it still hides Independent and Unknown behind green cells.
