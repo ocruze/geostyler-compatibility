@@ -63,7 +63,7 @@ describe('evaluatePair', () => {
   });
 
   it('a version whose core range source is none is Unknown', () => {
-    const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-sld-parser', '9.0.3'));
+    const result = evaluatePair(fx('geostyler', '0.1.0'), fx('geostyler-sld-parser', '9.0.3'));
     expect(result.verdict).toBe('unknown');
     expect(result.core).toEqual([
       expect.objectContaining({ core: 'geostyler-style', outcome: 'missing' }),
@@ -71,14 +71,49 @@ describe('evaluatePair', () => {
   });
 
   it('the core package itself against a version with source none is Unknown', () => {
-    const result = evaluatePair(fx('geostyler-style', '13.0.0'), fx('geostyler-legend', '5.2.0'));
+    const result = evaluatePair(fx('geostyler-style', '13.0.0'), fx('geostyler', '0.1.0'));
     expect(result.verdict).toBe('unknown');
   });
 
   it('an unsatisfied declared dependency with a missing core range is Unknown, not Duplicate', () => {
-    const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-openlayers-parser', '5.7.1'));
+    // No tracked version is left with source none and a declared dependency; strip the resolved range to check the order.
+    const unresolved = { ...fx('geostyler-legend', '5.2.0'), coreRanges: { 'geostyler-style': { source: 'none' as const }, 'geostyler-data': { source: 'none' as const } } };
+    const result = evaluatePair(unresolved, fx('geostyler-openlayers-parser', '5.7.1'));
     expect(result.verdict).toBe('unknown');
     expect(result.declared).toEqual([expect.objectContaining({ range: '5.1.2', satisfied: false })]);
+  });
+
+  describe('a transitively resolved range participates in the core axis like a declared one', () => {
+    // legend 5.2.0 inherits geostyler-style ^10.3.0 from openlayers-parser 5.1.2.
+    it('is Compatible with the version it came from', () => {
+      const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-openlayers-parser', '5.1.2'));
+      expect(result.verdict).toBe('compatible');
+      expect(result.core).toEqual([
+        expect.objectContaining({
+          core: 'geostyler-style',
+          outcome: 'intersect',
+          a: { source: 'transitive', range: '^10.3.0', origin: { name: 'geostyler-openlayers-parser', version: '5.1.2' } },
+        }),
+      ]);
+    });
+
+    it('is Compatible with a parser on the same schema', () => {
+      expect(evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-mapbox-parser', '6.2.0')).verdict).toBe('compatible');
+    });
+
+    it('is Risk with a parser on another schema', () => {
+      expect(evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-sld-parser', '9.0.3')).verdict).toBe('risk');
+    });
+
+    it('is Risk with a core version outside the inherited range', () => {
+      expect(evaluatePair(fx('geostyler-style', '12.0.0'), fx('geostyler-legend', '5.2.0')).verdict).toBe('risk');
+    });
+
+    it('is Risk, not Duplicate, with a newer version of the origin that moved schema', () => {
+      const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-openlayers-parser', '5.7.1'));
+      expect(result.verdict).toBe('risk');
+      expect(result.declared).toEqual([expect.objectContaining({ range: '5.1.2', satisfied: false })]);
+    });
   });
 
   it('a declared dependency the chosen version does not satisfy is Duplicate when core ranges intersect', () => {
