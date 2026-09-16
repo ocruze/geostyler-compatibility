@@ -55,7 +55,7 @@ function Docs() {
               type="info"
             />
             <p>
-              <strong>Examples:</strong> geostyler-sld-parser, geostyler-mapbox-parser, geostyler-qgis-parser, geostyler-openlayers-parser, geostyler-cql-parser
+              <strong>Examples:</strong> geostyler-sld-parser, geostyler-mapbox-parser, geostyler-qgis-parser, geostyler-openlayers-parser
             </p>
           </div>
 
@@ -70,7 +70,7 @@ function Docs() {
               type="info"
             />
             <p>
-              <strong>Examples:</strong> geostyler-geojson-parser, geostyler-wfs-parser, geostyler-shapefile-parser, geostyler-cql-parser
+              <strong>Examples:</strong> geostyler-geojson-parser, geostyler-wfs-parser, geostyler-shapefile-parser
             </p>
           </div>
 

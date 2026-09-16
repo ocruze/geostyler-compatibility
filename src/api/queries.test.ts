@@ -5,6 +5,8 @@ import type { Package, PackageVersion } from '@/types/compatibility';
 const v = (over: Partial<PackageVersion>): PackageVersion => ({
   name: 'x', version: '1.0.0', category: 'style-parser',
   dependencies: {}, peerDependencies: {}, esmSupport: true,
+  coreRanges: { 'geostyler-style': { source: 'none' }, 'geostyler-data': { source: 'none' } },
+  declaredDependencies: {}, moduleSystem: 'esm',
   publishDate: '2024-01-01', isPrerelease: false,
   repositoryUrl: '', npmUrl: '', ...over,
 });

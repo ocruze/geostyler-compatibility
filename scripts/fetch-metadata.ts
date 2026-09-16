@@ -8,8 +8,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { REPOS, REPO_TO_NPM } from '../src/constants/repos.js';
-import type { Dataset, Package, PackageVersion, PackageCategory, StyleFormat, DataFormat } from '../src/types/compatibility.js';
+import { REPOS, REPO_TO_NPM, NPM_TO_REPO, TRACKED_PACKAGES, CORE_PACKAGES } from '../src/constants/repos.js';
+import type {
+  Dataset,
+  Package,
+  PackageVersion,
+  PackageCategory,
+  StyleFormat,
+  DataFormat,
+  CoreRanges,
+  ModuleSystem,
+} from '../src/types/compatibility.js';
 import * as semver from 'semver';
 import { ProxyAgent } from 'undici';
 
@@ -107,6 +116,38 @@ export function detectEsmSupport(versionData: Record<string, unknown>): boolean 
   return hasImport(exp);
 }
 
+const isDeclarationFile = (entry: unknown): boolean =>
+  typeof entry === 'string' && entry.endsWith('.d.ts');
+
+/**
+ * Types-only when the main or types entry is a declaration file and no JavaScript entry exists.
+ */
+export function detectModuleSystem(versionData: Record<string, unknown>): ModuleSystem {
+  const hasJsMain = typeof versionData.main === 'string' && !isDeclarationFile(versionData.main);
+  const hasOtherJsEntry = Boolean(versionData.module || versionData.exports || versionData.browser);
+  const hasDeclarationEntry = isDeclarationFile(versionData.main) || isDeclarationFile(versionData.types);
+  if (hasDeclarationEntry && !hasJsMain && !hasOtherJsEntry) return 'types-only';
+  return detectEsmSupport(versionData) ? 'esm' : 'cjs';
+}
+
+function extractDeclaredDependencies(dependencies: Record<string, string> = {}): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(dependencies).filter(([name]) => TRACKED_PACKAGES.includes(name)),
+  );
+}
+
+/**
+ * The range a version declares on each core package, in dependencies or peerDependencies.
+ */
+function extractCoreRanges(versionData: NpmVersionData): CoreRanges {
+  return Object.fromEntries(
+    CORE_PACKAGES.map((core) => {
+      const range = versionData.dependencies?.[core] ?? versionData.peerDependencies?.[core];
+      return [core, range ? { source: 'declared', range } : { source: 'none' }];
+    }),
+  ) as CoreRanges;
+}
+
 /**
  * Minimal shape of a single version entry within the npm registry package
  * metadata response. Only documents the fields actually read below —
@@ -130,10 +171,11 @@ interface NpmRegistryPackage {
 }
 
 /**
- * Process npm package data into our format
+ * Turn one npm registry response into a Package record. Pure: no I/O.
  */
-function processNpmData(npmData: NpmRegistryPackage, repoName: string): Package {
-  const npmPackageName = REPO_TO_NPM[repoName];
+export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: string): Package {
+  const repoName = NPM_TO_REPO[npmPackageName];
+  if (!repoName) throw new Error(`${npmPackageName} is not a tracked package`);
   const category = getPackageCategory(repoName);
   const format = extractFormat(npmPackageName);
   
@@ -148,15 +190,19 @@ function processNpmData(npmData: NpmRegistryPackage, repoName: string): Package 
     // Skip invalid versions
     if (!semver.valid(versionTag)) continue;
 
+    const coreRanges = extractCoreRanges(versionData);
+    const styleRange = coreRanges['geostyler-style'];
+
     const packageVersion: PackageVersion = {
       name: npmPackageName,
       version: versionTag,
       category,
       dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
-      geostylerStyleRange:
-        versionData.dependencies?.['geostyler-style'] ||
-        versionData.peerDependencies?.['geostyler-style'],
+      coreRanges,
+      declaredDependencies: extractDeclaredDependencies(versionData.dependencies),
+      moduleSystem: detectModuleSystem(versionData),
+      geostylerStyleRange: styleRange.source === 'declared' ? styleRange.range : undefined,
       esmSupport: detectEsmSupport(versionData),
       publishDate: npmData.time?.[versionTag] ?? '',
       isPrerelease: semver.prerelease(versionTag) !== null,
@@ -209,7 +255,7 @@ async function main() {
       continue;
     }
     
-    const packageData = processNpmData(npmData as NpmRegistryPackage, repo);
+    const packageData = processNpmData(npmData as NpmRegistryPackage, npmPackageName);
     packages.push(packageData);
     
     console.log(`  ✓ Processed ${packageData.versions.length} versions`);
@@ -237,7 +283,7 @@ async function main() {
 }
 
 // Only run main() when this file is executed directly (e.g. `tsx scripts/fetch-metadata.ts`),
-// not when it's merely imported (e.g. by tests importing `detectEsmSupport`).
+// not when it's merely imported by tests.
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('Fatal error:', error);

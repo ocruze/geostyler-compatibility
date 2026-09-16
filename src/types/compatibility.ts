@@ -22,6 +22,22 @@ export type DataFormat =
 
 
 /**
+ * A package that defines a schema other packages consume.
+ */
+export type CorePackage = 'geostyler-style' | 'geostyler-data';
+
+export type ModuleSystem = 'esm' | 'cjs' | 'types-only';
+
+/**
+ * The range a version declares on a core package, with where it came from.
+ */
+export type CoreRange =
+  | { source: 'declared'; range: string }
+  | { source: 'none' };
+
+export type CoreRanges = Record<CorePackage, CoreRange>;
+
+/**
  * Package information including version and dependency details
  */
 export interface PackageVersion {
@@ -34,7 +50,13 @@ export interface PackageVersion {
   dependencies: Record<string, string>;
   peerDependencies: Record<string, string>;
   
-  // Key compatibility markers
+  // Three-axis inputs (ADR-0004)
+  coreRanges: CoreRanges;
+  // Dependencies on tracked packages only
+  declaredDependencies: Record<string, string>;
+  moduleSystem: ModuleSystem;
+
+  // Legacy markers, kept until the old engine is removed
   geostylerStyleRange?: string;
   esmSupport: boolean;
   

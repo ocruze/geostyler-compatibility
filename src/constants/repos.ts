@@ -1,5 +1,8 @@
+import type { CorePackage } from '../types/compatibility';
+
 /**
- * List of geostyler repositories to track
+ * List of geostyler repositories to track.
+ * geostyler-cql-parser is not tracked: users do not install it directly.
  */
 export const REPOS = [
   // core style
@@ -18,7 +21,6 @@ export const REPOS = [
   'geostyler/geostyler-geojson-parser',
   'geostyler/geostyler-wfs-parser',
   'geostyler/geostyler-shapefile-parser',
-  'geostyler/geostyler-cql-parser',
 ] as const;
 
 /**
@@ -27,3 +29,11 @@ export const REPOS = [
 export const REPO_TO_NPM: Record<string, string> = Object.fromEntries(
   REPOS.map((repo) => [repo, repo.split('/')[1]]),
 );
+
+export const NPM_TO_REPO: Record<string, string> = Object.fromEntries(
+  REPOS.map((repo) => [repo.split('/')[1], repo]),
+);
+
+export const TRACKED_PACKAGES: string[] = Object.values(REPO_TO_NPM);
+
+export const CORE_PACKAGES: CorePackage[] = ['geostyler-style', 'geostyler-data'];
