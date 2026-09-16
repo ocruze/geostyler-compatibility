@@ -165,7 +165,7 @@ describe('resolveTransitiveCoreRanges', () => {
     const [a] = resolveTransitiveCoreRanges([
       asPackage('a', minimal('a', '1.0.0', { b: '^1.0.0' })),
       asPackage('b', minimal('b', '1.0.0', { c: '^2.0.0' })),
-      asPackage('c', minimal('c', '2.3.0', {}, '^9.0.0'), minimal('c', '2.1.0', {}, '^8.0.0')),
+      asPackage('c', minimal('c', '2.1.0', {}, '^8.0.0'), minimal('c', '2.3.0', {}, '^9.0.0')),
     ]);
     expect(a.versions[0].coreRanges['geostyler-style']).toEqual({
       source: 'transitive', range: '^9.0.0', origin: { name: 'c', version: '2.3.0' },

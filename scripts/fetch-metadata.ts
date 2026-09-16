@@ -138,16 +138,17 @@ function extractDeclaredDependencies(dependencies: Record<string, string> = {}):
   );
 }
 
+const mapCoreRanges = (toRange: (core: CorePackage) => CoreRange): CoreRanges =>
+  Object.fromEntries(CORE_PACKAGES.map((core) => [core, toRange(core)])) as CoreRanges;
+
 /**
  * The range a version declares on each core package, in dependencies or peerDependencies.
  */
 function extractCoreRanges(versionData: NpmVersionData): CoreRanges {
-  return Object.fromEntries(
-    CORE_PACKAGES.map((core) => {
-      const range = versionData.dependencies?.[core] ?? versionData.peerDependencies?.[core];
-      return [core, range ? { source: 'declared', range } : { source: 'none' }];
-    }),
-  ) as CoreRanges;
+  return mapCoreRanges((core) => {
+    const range = versionData.dependencies?.[core] ?? versionData.peerDependencies?.[core];
+    return range ? { source: 'declared', range } : { source: 'none' };
+  });
 }
 
 /**
@@ -234,16 +235,15 @@ export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: stri
   };
 }
 
-/**
- * A version with no core range inherits one through its declared dependencies on tracked
- * packages: newest version satisfying the declared range, repeated until a declared range is
- * found or the chain ends. Pure: returns new records, resolved within `packages` only.
- */
+/** Fill transitive core ranges (see CONTEXT.md) from `packages` alone. Pure: returns new records. */
 export function resolveTransitiveCoreRanges(packages: Package[]): Package[] {
   const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
 
-  const newestSatisfying = (name: string, range: string): PackageVersion | undefined =>
-    byName.get(name)?.versions.find((v) => semver.satisfies(v.version, range));
+  const newestSatisfying = (name: string, range: string): PackageVersion | undefined => {
+    const versions = byName.get(name)?.versions ?? [];
+    const newest = semver.maxSatisfying(versions.map((v) => v.version), range);
+    return versions.find((v) => v.version === newest);
+  };
 
   const resolve = (version: PackageVersion, core: CorePackage, visited: Set<string>): CoreRange => {
     const own = version.coreRanges[core];
@@ -251,7 +251,9 @@ export function resolveTransitiveCoreRanges(packages: Package[]): Package[] {
     const key = `${version.name}@${version.version}`;
     if (visited.has(key)) return { source: 'none' };
     visited.add(key);
-    for (const [name, range] of Object.entries(version.declaredDependencies).sort()) {
+    // Walk dependencies by name so the origin is deterministic when several could resolve.
+    const declared = Object.entries(version.declaredDependencies).sort(([x], [y]) => x.localeCompare(y));
+    for (const [name, range] of declared) {
       if (CORE_PACKAGES.includes(name as CorePackage)) continue;
       const dependency = newestSatisfying(name, range);
       if (!dependency) continue;
@@ -265,12 +267,10 @@ export function resolveTransitiveCoreRanges(packages: Package[]): Package[] {
     ...pkg,
     versions: pkg.versions.map((version) => ({
       ...version,
-      coreRanges: Object.fromEntries(
-        CORE_PACKAGES.map((core) => {
-          const own = version.coreRanges[core];
-          return [core, own.source === 'none' ? resolve(version, core, new Set()) : own];
-        }),
-      ) as CoreRanges,
+      coreRanges: mapCoreRanges((core) => {
+        const own = version.coreRanges[core];
+        return own.source === 'none' ? resolve(version, core, new Set()) : own;
+      }),
     })),
   }));
 }

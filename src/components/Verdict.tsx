@@ -55,7 +55,7 @@ function rangeText(r: CoreRange) {
     <Flex vertical>
       <code>{r.range}</code>
       <Text type="secondary">
-        inherited from {r.origin.name} {r.origin.version}
+        transitive, from {r.origin.name} {r.origin.version}
       </Text>
     </Flex>
   );
