@@ -28,3 +28,5 @@ dist-ssr
 .env.local
 
 src/data
+# Browser snapshots from the Playwright MCP
+.playwright-mcp
