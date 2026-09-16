@@ -23,8 +23,13 @@ describe('verdictSentence', () => {
   });
 
   it('names the version lacking a range on Unknown', () => {
-    expect(sentence(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler-legend', '5.2.0')))
-      .toBe('No geostyler-style range declared for geostyler-legend 5.2.0.');
+    expect(sentence(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler', '0.1.0')))
+      .toBe('No geostyler-style range declared for geostyler 0.1.0.');
+  });
+
+  it('quotes the inherited range the core package misses on Risk', () => {
+    expect(sentence(fx('geostyler-style', '12.0.0'), fx('geostyler-legend', '5.2.0')))
+      .toBe('Not tested together: geostyler-legend 5.2.0 needs geostyler-style ^10.3.0, not 12.0.0. Each gets its own copy; style objects may not match.');
   });
 
   it('names both copies on Duplicate', () => {
