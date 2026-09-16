@@ -3,3 +3,5 @@ export type { CoreAxis, CoreAxisOutcome, DeclaredDependencyAxis, PairEvaluation,
 export { buildLatestReleasesGrid, latestStableVersion } from './latestReleasesGrid';
 export type { LatestReleasesGrid } from './latestReleasesGrid';
 export { verdictSentence, versionLabel } from './verdictSentence';
+export { buildVersionSet, candidateVersions, stackPairSentence } from './versionSet';
+export type { StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';

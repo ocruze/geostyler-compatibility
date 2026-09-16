@@ -94,7 +94,7 @@ Verdict when one package declares the other but the chosen version does not sati
 Verdict when core ranges intersect and shared peers intersect.
 
 **Shipped together**:
-Verdict when core ranges differ but one package declares the other in a satisfied range. Upstream builds and tests this pair. Treated as Compatible for recommendations, shown with its own label.
+Verdict when core ranges differ but one package declares the other in a satisfied range. Upstream builds and tests this pair. Treated as Compatible for recommendations, shown with its own label. In a version set, a Risk pair also counts as Shipped together when a third chosen version declares both members in satisfied ranges (sld-parser and mapbox-parser through geostyler).
 
 **Independent**:
 Verdict when the pair shares no axis. Not a pass; nothing was checked.

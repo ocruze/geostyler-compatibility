@@ -502,5 +502,295 @@
     "repositoryUrl": "https://github.com/geostyler/geostyler",
     "changelogUrl": "https://github.com/geostyler/geostyler/blob/main/CHANGELOG.md",
     "npmUrl": "https://www.npmjs.com/package/geostyler/v/0.1.0"
+  },
+  {
+    "name": "geostyler-style",
+    "version": "11.1.0",
+    "category": "core",
+    "dependencies": {},
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {},
+    "moduleSystem": "esm",
+    "esmSupport": true,
+    "publishDate": "2026-04-20T11:21:08.692Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-style",
+    "changelogUrl": "https://github.com/geostyler/geostyler-style/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-style/v/11.1.0"
+  },
+  {
+    "name": "geostyler-style",
+    "version": "10.5.0",
+    "category": "core",
+    "dependencies": {},
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {},
+    "moduleSystem": "esm",
+    "esmSupport": true,
+    "publishDate": "2025-09-18T06:40:55.181Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-style",
+    "changelogUrl": "https://github.com/geostyler/geostyler-style/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-style/v/10.5.0"
+  },
+  {
+    "name": "geostyler-sld-parser",
+    "version": "8.5.0",
+    "category": "style-parser",
+    "dependencies": {
+      "fast-xml-parser": "^5.2.3",
+      "geostyler-style": "^12.0.0"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^12.0.0"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-style": "^12.0.0"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^12.0.0",
+    "esmSupport": true,
+    "publishDate": "2026-04-30T08:07:42.393Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-sld-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-sld-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-sld-parser/v/8.5.0"
+  },
+  {
+    "name": "geostyler-sld-parser",
+    "version": "8.4.2",
+    "category": "style-parser",
+    "dependencies": {
+      "fast-xml-parser": "^5.2.3",
+      "geostyler-style": "^11.0.2"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^11.0.2"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-style": "^11.0.2"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^11.0.2",
+    "esmSupport": true,
+    "publishDate": "2026-04-16T11:37:17.921Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-sld-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-sld-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-sld-parser/v/8.4.2"
+  },
+  {
+    "name": "geostyler-sld-parser",
+    "version": "8.2.0",
+    "category": "style-parser",
+    "dependencies": {
+      "lodash": "^4.17.21",
+      "fast-xml-parser": "^5.2.3",
+      "geostyler-style": "^10.4.0"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^10.4.0"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-style": "^10.4.0"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^10.4.0",
+    "esmSupport": true,
+    "publishDate": "2025-11-05T13:48:01.759Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-sld-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-sld-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-sld-parser/v/8.2.0"
+  },
+  {
+    "name": "geostyler-mapbox-parser",
+    "version": "6.1.1",
+    "category": "style-parser",
+    "dependencies": {
+      "geostyler-style": "^10.0.0",
+      "@types/mapbox-gl": "^2.7.18"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^10.0.0"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-style": "^10.0.0"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^10.0.0",
+    "esmSupport": true,
+    "publishDate": "2025-03-12T10:23:06.544Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-mapbox-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-mapbox-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-mapbox-parser/v/6.1.1"
+  },
+  {
+    "name": "geostyler-data",
+    "version": "1.0.0",
+    "category": "core",
+    "dependencies": {
+      "@types/geojson": "7946.0.7",
+      "@types/json-schema": "7.0.3"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {},
+    "moduleSystem": "types-only",
+    "esmSupport": false,
+    "publishDate": "2019-04-08T12:29:38.781Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-data",
+    "changelogUrl": "https://github.com/geostyler/geostyler-data/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-data/v/1.0.0"
+  },
+  {
+    "name": "geostyler-geojson-parser",
+    "version": "1.0.1",
+    "category": "data-parser",
+    "dependencies": {
+      "@types/jest": "^24.0.18",
+      "@types/node": "^12.7.3",
+      "@types/geojson": "^7946.0.7",
+      "geostyler-data": "^1.0.0",
+      "@babel/polyfill": "^7.4.4",
+      "@types/json-schema": "^7.0.3"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "declared",
+        "range": "^1.0.0"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-data": "^1.0.0"
+    },
+    "moduleSystem": "cjs",
+    "esmSupport": false,
+    "publishDate": "2019-09-02T07:16:32.355Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-geojson-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-geojson-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-geojson-parser/v/1.0.1"
+  },
+  {
+    "name": "geostyler-wfs-parser",
+    "version": "3.0.1",
+    "category": "data-parser",
+    "dependencies": {
+      "geostyler-data": "^1.0.0",
+      "fast-xml-parser": "^4.4.0"
+    },
+    "peerDependencies": {},
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "none"
+      },
+      "geostyler-data": {
+        "source": "declared",
+        "range": "^1.0.0"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-data": "^1.0.0"
+    },
+    "moduleSystem": "esm",
+    "esmSupport": true,
+    "publishDate": "2024-07-02T10:55:57.378Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-wfs-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-wfs-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-wfs-parser/v/3.0.1"
+  },
+  {
+    "name": "geostyler-legend",
+    "version": "5.2.1",
+    "category": "ui",
+    "dependencies": {
+      "@types/d3-selection": "^3.0.11",
+      "geostyler-openlayers-parser": "^5.4.0",
+      "geostyler-style": "^11.0.2"
+    },
+    "peerDependencies": {
+      "d3": ">=6",
+      "ol": ">=6"
+    },
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^11.0.2"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-openlayers-parser": "^5.4.0",
+      "geostyler-style": "^11.0.2"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^11.0.2",
+    "esmSupport": true,
+    "publishDate": "2026-02-02T12:53:52.653Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-legend",
+    "changelogUrl": "https://github.com/geostyler/geostyler-legend/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-legend/v/5.2.1"
   }
 ]
