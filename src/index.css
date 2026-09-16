@@ -216,3 +216,55 @@
   gap: 4px;
   font-size: 13px;
 }
+
+/* --- Stack builder ----------------------------------------------------- */
+
+.stack-builder {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 3fr;
+  gap: 24px;
+}
+
+.stack-builder__packages {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.stack-builder__legend {
+  margin-bottom: 8px;
+}
+
+.stack-builder__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.stack-builder__result {
+  min-width: 0;
+}
+
+@media (max-width: 575px) {
+  .stack-builder {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pair-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pair-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}

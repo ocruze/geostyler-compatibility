@@ -1,28 +1,39 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Card, Typography } from 'antd';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Card } from 'antd';
 import { useEffect } from 'react';
 
 import { usePackages } from '@/api/queries';
-import { LatestReleasesGrid } from '@/components/LatestReleasesGrid';
+import { StackBuilder } from '@/components/StackBuilder';
 
-const { Paragraph } = Typography;
+// The stack lives in the URL: back undoes the last change and links share the same answer.
+type StackSearch = { stack?: string };
 
-export const Route = createFileRoute('/')({ component: LatestReleases });
+export const Route = createFileRoute('/')({
+  component: StackBuilderPage,
+  validateSearch: (search: Record<string, unknown>): StackSearch => ({
+    stack: typeof search.stack === 'string' && search.stack ? search.stack : undefined,
+  }),
+});
 
-function LatestReleases() {
+function StackBuilderPage() {
   const { data: packages } = usePackages();
+  const { stack: stackParam } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+
+  const tracked = new Set(packages.map((p) => p.name));
+  const stack = (stackParam ? stackParam.split(',') : []).filter((name) => tracked.has(name));
 
   useEffect(() => {
-    document.title = 'Latest releases · GeoStyler Compatibility';
+    document.title = 'Stack builder · GeoStyler Compatibility';
   }, []);
 
+  const setStack = (next: string[]) => {
+    navigate({ search: (next.length > 0 ? { stack: next.join(',') } : {}) satisfies StackSearch });
+  };
+
   return (
-    <Card title="Latest releases">
-      <Paragraph type="secondary">
-        The latest stable release of every tracked package against every other. Prereleases are excluded. Select a
-        cell to see how the verdict was reached.
-      </Paragraph>
-      <LatestReleasesGrid packages={packages} />
+    <Card title="Which versions do I install?">
+      <StackBuilder packages={packages} stack={stack} onStackChange={setStack} />
     </Card>
   );
 }
