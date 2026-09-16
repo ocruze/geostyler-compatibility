@@ -3,10 +3,11 @@ import { Flex, Modal, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 import { buildLatestReleasesGrid, versionLabel, type PairEvaluation } from '@/engine';
+
+import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 import { VerdictCell, VerdictDetail, VerdictTag } from './Verdict';
-import { usePrereleases } from './prereleases';
 import { VERDICT_META, VERDICTS } from './verdictMeta';
 
 const { Text } = Typography;
@@ -28,8 +29,8 @@ function HeaderLink({ version, short }: { version: PackageVersion; short?: boole
 }
 
 export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
-  const [showPrereleases] = usePrereleases();
-  const grid = useMemo(() => buildLatestReleasesGrid(packages, showPrereleases), [packages, showPrereleases]);
+  const [includePrereleases] = usePrereleases();
+  const grid = useMemo(() => buildLatestReleasesGrid(packages, includePrereleases), [packages, includePrereleases]);
   const [selected, setSelected] = useState<PairEvaluation | null>(null);
 
   return (

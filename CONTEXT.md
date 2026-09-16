@@ -28,16 +28,16 @@ A package that ships only TypeScript declarations, such as `geostyler-data`. It 
 _Avoid_: CJS package (for these)
 
 **Prerelease**:
-A version with a `-next`, `-beta` or similar tag. Hidden by default everywhere and never recommended while a stable version exists.
+A version with a `-next`, `-beta` or similar tag. Hidden by default everywhere and never recommended while a stable version exists. One global toggle, "Show prereleases", stored as a browser preference and never in the URL, reveals them in grids and version controls.
 
 ### Pages
 
 **Stack builder**:
-The landing page. Takes a stack and optional pins, returns a version set, an install command and the bottleneck.
+The landing page, labelled "Check compatibility" in the header. Takes a stack and optional pins, returns a version set, an install command and the bottleneck.
 _Avoid_: overview, dashboard, compare
 
 **Latest releases grid**:
-The stack builder's empty state. Every tracked package's latest stable release against every other, one verdict per cell.
+The stack builder's empty state. Every tracked package's latest release against every other, one verdict per cell. Stable releases only unless the prerelease toggle is on.
 
 ### Selection
 

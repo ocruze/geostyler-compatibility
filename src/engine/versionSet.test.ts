@@ -117,6 +117,8 @@ describe('buildVersionSet', () => {
     expect(installCommand(found(result).versions)).toBe(
       'npm install geostyler@18.6.0 geostyler-sld-parser@8.5.0 geostyler-mapbox-parser@6.2.0',
     );
+    const withCore = buildVersionSet(packages, ['geostyler-style', 'geostyler-sld-parser']);
+    expect(installCommand(found(withCore).versions)).toBe('npm install geostyler-style@12.0.0 geostyler-sld-parser@9.0.3');
   });
 
   it('lists the newest available version next to each chosen one', () => {

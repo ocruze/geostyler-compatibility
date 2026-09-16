@@ -5,11 +5,12 @@ import { useMemo } from 'react';
 
 import { CORE_PACKAGES } from '@/constants/repos';
 import { buildVersionSet, stackPairSentence, versionLabel, type Anchors, type StackPair } from '@/engine';
+
+import { usePrereleases } from '@/hooks/usePrereleases';
 import type { CoreRange, Package, PackageVersion } from '@/types/compatibility';
 
 import { InstallLine } from './InstallLine';
 import { VerdictTag } from './Verdict';
-import { usePrereleases } from './prereleases';
 
 const { Text, Title } = Typography;
 
