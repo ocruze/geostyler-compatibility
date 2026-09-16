@@ -3,6 +3,6 @@ export type { CoreAxis, CoreAxisOutcome, DeclaredDependencyAxis, PairEvaluation,
 export { buildLatestReleasesGrid, latestVersion } from './latestReleasesGrid';
 export type { LatestReleasesGrid } from './latestReleasesGrid';
 export { verdictSentence, versionLabel } from './verdictSentence';
-export { buildVersionSet, installCommand, stackPairSentence } from './versionSet';
-export type { Anchors, NoSet, PartialSet, Pins, PinToRelax, StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';
+export { bottleneckSentence, buildVersionSet, installCommand, stackPairSentence } from './versionSet';
+export type { Anchors, Bottleneck, NoSet, PartialSet, Pins, PinToRelax, StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';
 export { candidateVersions } from './versions';

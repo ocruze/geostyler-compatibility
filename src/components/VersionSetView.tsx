@@ -1,10 +1,11 @@
 import { Link } from '@tanstack/react-router';
-import { Alert, Flex, Table, Tag, Typography } from 'antd';
+import { Alert, Collapse, Flex, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo } from 'react';
 
 import { CORE_PACKAGES } from '@/constants/repos';
 import {
+  bottleneckSentence,
   buildVersionSet,
   stackPairSentence,
   versionLabel,
@@ -100,6 +101,55 @@ function PairList({ pairs, label }: { pairs: StackPair[]; label: string }) {
   );
 }
 
+// One row per stack package whose newest release was passed over.
+const passedOverColumns: ColumnsType<Row> = [
+  columns[0],
+  { title: 'Newest release', key: 'newest', render: (_, { newest }) => <code>{newest.version}</code> },
+  { title: 'Chosen instead', key: 'chosen', render: (_, { chosen }) => <code>{chosen.version}</code> },
+  ...CORE_PACKAGES.map(
+    (core): ColumnsType<Row>[number] => ({
+      title: `${core} range of the newest`,
+      key: core,
+      render: (_, { newest }) =>
+        newest.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(newest.coreRanges[core]),
+    }),
+  ),
+];
+
+function BottleneckNote({ set, rows }: { set: VersionSet; rows: Row[] }) {
+  const passedOver = rows.filter(({ chosen, newest }) => chosen !== newest);
+  if (passedOver.length === 0) return null;
+  const sentence = bottleneckSentence(set);
+  return (
+    <Flex vertical gap="small">
+      {sentence ? (
+        <Alert type="info" showIcon title={sentence} />
+      ) : (
+        <Text type="secondary">Several packages together hold the set below the newest releases.</Text>
+      )}
+      <Collapse
+        size="small"
+        items={[
+          {
+            key: 'evidence',
+            label: `Newest releases passed over (${passedOver.length})`,
+            children: (
+              <Table<Row>
+                size="small"
+                pagination={false}
+                rowKey={(row) => row.chosen.name}
+                columns={passedOverColumns}
+                dataSource={passedOver}
+                scroll={{ x: 'max-content' }}
+              />
+            ),
+          },
+        ]}
+      />
+    </Flex>
+  );
+}
+
 function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
   const rows: Row[] = set.versions.map((chosen, i) => ({
     chosen,
@@ -117,6 +167,7 @@ function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
         scroll={{ x: 'max-content' }}
       />
       <InstallLine versions={set.versions} />
+      <BottleneckNote set={set} rows={rows} />
       <AnchorLine anchors={set.anchors} />
       <PairList pairs={set.pairs} label="Pair verdicts" />
     </Flex>

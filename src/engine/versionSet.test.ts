@@ -1,20 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { buildVersionSet, installCommand, stackPairSentence } from '@/engine/versionSet';
+import { bottleneckSentence, buildVersionSet, installCommand, stackPairSentence } from '@/engine/versionSet';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
 import { fx, fxPackage } from './__fixtures__/versions';
 
 const style = fxPackage('geostyler-style', '13.0.0', '12.0.0', '11.1.0', '10.5.0');
 const data = fxPackage('geostyler-data', '1.1.0', '1.0.0');
-const ui = fxPackage('geostyler', '18.6.0');
-const sld = fxPackage('geostyler-sld-parser', '9.0.3', '8.5.0', '8.4.2', '8.2.0');
+const ui = fxPackage('geostyler', '18.6.0', '17.0.0');
+const sld = fxPackage('geostyler-sld-parser', '9.0.3', '8.5.0', '8.4.2', '8.2.0', '7.3.0');
 const mapbox = fxPackage('geostyler-mapbox-parser', '6.2.0', '6.1.1');
 const qgis = fxPackage('geostyler-qgis-parser', '4.1.0');
 const openlayers = fxPackage('geostyler-openlayers-parser', '5.7.1', '5.6.1', '5.1.2', '4.1.2');
 const geojson = fxPackage('geostyler-geojson-parser', '2.0.0', '1.0.1');
 const wfs = fxPackage('geostyler-wfs-parser', '3.0.1');
+const legend = fxPackage('geostyler-legend', '5.2.1', '5.2.0');
 
-const packages: Package[] = [style, ui, sld, mapbox, qgis, openlayers, data, geojson, wfs];
+const packages: Package[] = [style, ui, legend, sld, mapbox, qgis, openlayers, data, geojson, wfs];
 
 const found = (result: ReturnType<typeof buildVersionSet>) => {
   if (result.status !== 'found') throw new Error(`expected a version set, got ${result.status}`);
@@ -195,5 +196,43 @@ describe('buildVersionSet', () => {
     expect(result.pinToRelax).toBeNull();
     // Without sld, openlayers 4.1.2 still fits no anchor in this fixture; without openlayers, sld does.
     expect(result.partial?.removed).toBe('geostyler-openlayers-parser');
+  });
+
+  describe('bottleneck', () => {
+    const bigStack = [
+      'geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser', 'geostyler-qgis-parser',
+      'geostyler-openlayers-parser', 'geostyler-legend',
+    ];
+
+    it('names geostyler-legend for the full UI stack', () => {
+      const result = buildVersionSet(packages, bigStack);
+      const set = found(result);
+      expect(set.anchors['geostyler-style']?.version).toBe('10.5.0');
+      expect(chosen(result)).toEqual({
+        geostyler: '17.0.0',
+        'geostyler-sld-parser': '7.3.0',
+        'geostyler-mapbox-parser': '6.2.0',
+        'geostyler-qgis-parser': '4.1.0',
+        'geostyler-openlayers-parser': '5.1.2',
+        'geostyler-legend': '5.2.0',
+      });
+      expect(set.bottleneck?.name).toBe('geostyler-legend');
+      expect(set.bottleneck?.newest.version).toBe('5.2.1');
+      expect(bottleneckSentence(set)).toBe(
+        'geostyler-legend holds the set at geostyler-style 10.5.0. Without it the set would move to geostyler-style 11.1.0; its newest release 5.2.1 (geostyler-style ^11.0.2) fits no newer set.',
+      );
+    });
+
+    it('is absent when every chosen version is the newest', () => {
+      const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-geojson-parser']);
+      expect(found(result).bottleneck).toBeNull();
+    });
+
+    it('names the package passed over even when the set is one anchor behind', () => {
+      const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-openlayers-parser']);
+      const set = found(result);
+      expect(set.bottleneck?.name).toBe('geostyler-openlayers-parser');
+      expect(chosen(result)['geostyler-sld-parser']).toBe('8.4.2');
+    });
   });
 });
