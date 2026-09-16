@@ -1,12 +1,11 @@
-import { Button, Flex, Modal, Typography } from 'antd';
+import { Button, Flex, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
-import { buildPairMatrix, PAIR_MATRIX_DEFAULT_LIMIT, versionLabel, type PairEvaluation } from '@/engine';
+import { buildPairMatrix, PAIR_MATRIX_DEFAULT_LIMIT, type PairEvaluation } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package } from '@/types/compatibility';
 
-import { VerdictCell, VerdictDetail, VerdictTag } from './Verdict';
-import { VERDICT_META, VERDICTS } from './verdictMeta';
+import { VerdictCell, VerdictLegend, VerdictModal } from './Verdict';
 
 const { Text } = Typography;
 
@@ -17,7 +16,7 @@ export function PairMatrix({ a, b }: { a: Package; b: Package }) {
   const [selected, setSelected] = useState<PairEvaluation | null>(null);
 
   const matrix = useMemo(
-    () => buildPairMatrix(a, b, { includePrereleases, limit: showAll ? undefined : PAIR_MATRIX_DEFAULT_LIMIT }),
+    () => buildPairMatrix(a, b, { includePrereleases, all: showAll }),
     [a, b, includePrereleases, showAll],
   );
   const truncated = matrix.total.rows > matrix.rows.length || matrix.total.cols > matrix.cols.length;
@@ -68,24 +67,8 @@ export function PairMatrix({ a, b }: { a: Package; b: Package }) {
         </table>
       </div>
 
-      <ul className="verdict-legend" aria-label="Verdict legend">
-        {VERDICTS.map((verdict) => (
-          <li key={verdict}>
-            <VerdictTag verdict={verdict} />
-            <Text type="secondary">{VERDICT_META[verdict].definition}</Text>
-          </li>
-        ))}
-      </ul>
-
-      <Modal
-        open={selected !== null}
-        onCancel={() => setSelected(null)}
-        footer={null}
-        width={720}
-        title={selected ? `${versionLabel(selected.a)} and ${versionLabel(selected.b)}` : ''}
-      >
-        {selected && <VerdictDetail evaluation={selected} />}
-      </Modal>
+      <VerdictLegend />
+      <VerdictModal evaluation={selected} onClose={() => setSelected(null)} />
     </Flex>
   );
 }

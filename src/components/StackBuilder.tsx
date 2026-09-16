@@ -3,6 +3,7 @@ import { Checkbox, Flex, Select, Typography } from 'antd';
 import { candidateVersions, type Pins } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageCategory } from '@/types/compatibility';
+import type { StackSelection } from '@/utils/stackSearch';
 
 import { LatestReleasesGrid } from './LatestReleasesGrid';
 import { VersionSetView } from './VersionSetView';
@@ -19,16 +20,16 @@ const GROUPS: { category: PackageCategory; label: string }[] = [
 
 interface StackBuilderProps {
   packages: Package[];
-  stack: string[];
-  pins: Pins;
-  onChange: (stack: string[], pins: Pins) => void;
+  selection: StackSelection;
+  onChange: (selection: StackSelection) => void;
 }
 
 const RECOMMENDED = '';
 
 const without = (pins: Pins, name: string): Pins => Object.fromEntries(Object.entries(pins).filter(([n]) => n !== name));
 
-export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderProps) {
+export function StackBuilder({ packages, selection, onChange }: StackBuilderProps) {
+  const { stack, pins } = selection;
   const [includePrereleases] = usePrereleases();
 
   const toggle = (name: string, checked: boolean) => {
@@ -36,11 +37,11 @@ export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderPr
     if (checked) next.add(name);
     else next.delete(name);
     // Stored in tracked order so the same stack always gives the same URL.
-    onChange(packages.map((p) => p.name).filter((n) => next.has(n)), checked ? pins : without(pins, name));
+    onChange({ stack: packages.map((p) => p.name).filter((n) => next.has(n)), pins: checked ? pins : without(pins, name) });
   };
 
   const pin = (name: string, version: string) => {
-    onChange(stack, version === RECOMMENDED ? without(pins, name) : { ...pins, [name]: version });
+    onChange({ stack, pins: version === RECOMMENDED ? without(pins, name) : { ...pins, [name]: version } });
   };
 
   const versionOptions = (pkg: Package) => {
@@ -110,7 +111,7 @@ export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderPr
             <LatestReleasesGrid packages={packages} />
           </>
         ) : (
-          <VersionSetView packages={packages} stack={stack} pins={pins} />
+          <VersionSetView packages={packages} selection={selection} />
         )}
       </div>
     </div>

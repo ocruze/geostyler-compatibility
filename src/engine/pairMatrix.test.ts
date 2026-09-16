@@ -18,11 +18,16 @@ describe('buildPairMatrix', () => {
     expect(matrix.cells[1][0].verdict).toBe('risk');
   });
 
-  it('keeps the newest versions up to the limit and reports the totals', () => {
-    const matrix = buildPairMatrix(ui, sld, { limit: 2 });
-    expect(matrix.cols.map((v) => v.version)).toEqual(['9.0.3', '8.5.0']);
-    expect(matrix.total).toEqual({ rows: 2, cols: 5 });
-    expect(buildPairMatrix(ui, sld, { limit: undefined }).cols).toHaveLength(5);
+  it('keeps the newest 20 per side unless every version is asked for', () => {
+    const many: Package = {
+      ...sld,
+      versions: Array.from({ length: 25 }, (_, i) => ({ ...fx('geostyler-sld-parser', '9.0.3'), version: `9.0.${30 - i}` })),
+    };
+    const matrix = buildPairMatrix(ui, many);
+    expect(matrix.cols).toHaveLength(20);
+    expect(matrix.cols[0].version).toBe('9.0.30');
+    expect(matrix.total).toEqual({ rows: 2, cols: 25 });
+    expect(buildPairMatrix(ui, many, { all: true }).cols).toHaveLength(25);
   });
 
   it('hides prereleases unless asked', () => {

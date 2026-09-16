@@ -8,11 +8,12 @@ import { usePackages } from '@/api/queries';
 import { PairMatrix } from '@/components/PairMatrix';
 import { CoreRangeText } from '@/components/Verdict';
 import { CORE_PACKAGES } from '@/constants/repos';
-import { candidateVersions, latestVersion } from '@/engine';
+import { candidateVersions } from '@/engine';
+import { EXPECTED_CORES } from '@/engine/evaluatePair';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { ModuleSystem, Package, PackageCategory, PackageVersion } from '@/types/compatibility';
 import { formatUtcDate } from '@/utils/date';
-import { encodeStackSearch, parsePins, parseStack, validateStackSearch, type StackSearch } from '@/utils/stackSearch';
+import { encodeStackSearch, parseStackSelection, validateStackSearch, type StackSearch } from '@/utils/stackSearch';
 
 const { Text, Title } = Typography;
 
@@ -25,14 +26,14 @@ const CATEGORY_LABEL: Record<PackageCategory, string> = {
 
 const MODULE_LABEL: Record<ModuleSystem, string> = { esm: 'ESM', cjs: 'CJS', 'types-only': 'Types only' };
 
-// The stack travels with the page so "Add to stack" returns to the same stack builder state.
-type PackageSearch = StackSearch & { compare?: string };
+// The stack travels with the page so "Add to stack" returns to the same stack builder state; `with` names the pair matrix partner.
+type PackageSearch = StackSearch & { with?: string };
 
 export const Route = createFileRoute('/package/$name')({
   component: PackageDetail,
   validateSearch: (search: Record<string, unknown>): PackageSearch => ({
     ...validateStackSearch(search),
-    compare: typeof search.compare === 'string' && search.compare ? search.compare : undefined,
+    with: typeof search.with === 'string' && search.with ? search.with : undefined,
   }),
 });
 
@@ -45,9 +46,8 @@ function PackageDetail() {
 
   const pkg = packages.find((p) => p.name === name);
   const tracked = useMemo(() => packages.map((p) => p.name), [packages]);
-  const stack = useMemo(() => parseStack(search.stack, tracked), [search.stack, tracked]);
-  const pins = useMemo(() => parsePins(search.pin, stack), [search.pin, stack]);
-  const other = packages.find((p) => p.name === search.compare && p.name !== name);
+  const selection = useMemo(() => parseStackSelection(search, tracked), [search, tracked]);
+  const partner = packages.find((p) => p.name === search.with && p.name !== name);
 
   useEffect(() => {
     document.title = pkg ? `${pkg.name} · GeoStyler Compatibility` : 'GeoStyler Compatibility';
@@ -68,16 +68,17 @@ function PackageDetail() {
     );
   }
 
-  const latest = latestVersion(pkg, includePrereleases);
-  const inStack = stack.includes(pkg.name);
+  // npm's latest tag, the same version the history marks as latest.
+  const latest = pkg.versions.find((v) => v.version === pkg.latestVersion);
+  const inStack = selection.stack.includes(pkg.name);
   const addToStack = () => {
-    const next = tracked.filter((n) => n === pkg.name || stack.includes(n));
-    navigate({ to: '/', search: encodeStackSearch(next, pins) });
+    const stack = tracked.filter((n) => n === pkg.name || selection.stack.includes(n));
+    navigate({ to: '/', search: encodeStackSearch({ stack, pins: selection.pins }) });
   };
 
   return (
     <Flex vertical gap="large">
-      <Link to="/" search={encodeStackSearch(stack, pins)}>
+      <Link to="/" search={encodeStackSearch(selection)}>
         <Button type="text" icon={<ArrowLeftOutlined aria-hidden="true" />}>
           Back to the stack builder
         </Button>
@@ -114,24 +115,24 @@ function PackageDetail() {
         </Flex>
       </Card>
 
-      <Card title="Compare with">
+      <Card title="Pair matrix">
         <Flex vertical gap="middle">
           <Flex gap="small" align="center" wrap>
-            <label htmlFor="compare-select">
-              <Text strong>Other package</Text>
+            <label htmlFor="partner-select">
+              <Text strong>Against</Text>
             </label>
             <Select
-              id="compare-select"
+              id="partner-select"
               className="package-select"
-              placeholder="Choose a package to compare"
-              value={other?.name}
-              onChange={(compare: string) => navigate({ search: (prev) => ({ ...prev, compare }) })}
+              placeholder="Choose another tracked package"
+              value={partner?.name}
+              onChange={(name: string) => navigate({ search: (prev) => ({ ...prev, with: name }) })}
               showSearch
               options={packages.filter((p) => p.name !== pkg.name).map((p) => ({ value: p.name, label: p.name }))}
             />
           </Flex>
-          {other ? (
-            <PairMatrix a={pkg} b={other} />
+          {partner ? (
+            <PairMatrix a={pkg} b={partner} />
           ) : (
             <Text type="secondary">Pick another tracked package to see a verdict for every pair of versions.</Text>
           )}
@@ -147,7 +148,10 @@ function PackageDetail() {
 
 function VersionHistory({ pkg, includePrereleases }: { pkg: Package; includePrereleases: boolean }) {
   const versions = candidateVersions(pkg, includePrereleases);
-  const cores = CORE_PACKAGES.filter((core) => pkg.name !== core && versions.some((v) => v.coreRanges[core].source !== 'none'));
+  // A core the category expects always gets a column, so a missing range shows as none.
+  const cores = CORE_PACKAGES.filter(
+    (core) => pkg.name !== core && (EXPECTED_CORES[pkg.category].includes(core) || versions.some((v) => v.coreRanges[core].source !== 'none')),
+  );
 
   const columns: ColumnsType<PackageVersion> = [
     {

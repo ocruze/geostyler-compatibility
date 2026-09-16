@@ -6,6 +6,11 @@ export interface StackSearch {
   pin?: string;
 }
 
+export interface StackSelection {
+  stack: string[];
+  pins: Pins;
+}
+
 const nonEmptyString = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
 
 export function validateStackSearch(search: Record<string, unknown>): StackSearch {
@@ -28,7 +33,12 @@ export function parsePins(param: string | undefined, stack: string[]): Pins {
   return pins;
 }
 
-export function encodeStackSearch(stack: string[], pins: Pins): StackSearch {
+export function parseStackSelection(search: StackSearch, tracked: string[]): StackSelection {
+  const stack = parseStack(search.stack, tracked);
+  return { stack, pins: parsePins(search.pin, stack) };
+}
+
+export function encodeStackSearch({ stack, pins }: StackSelection): StackSearch {
   const search: StackSearch = {};
   if (stack.length > 0) search.stack = stack.join(',');
   const entries = stack.filter((name) => name in pins).map((name) => `${name}@${pins[name]}`);

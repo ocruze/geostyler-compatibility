@@ -36,6 +36,12 @@ A version with a `-next`, `-beta` or similar tag. Hidden by default everywhere a
 The landing page, labelled "Check compatibility" in the header. Takes a stack and optional pins, returns a version set, an install command and the bottleneck.
 _Avoid_: overview, dashboard, compare
 
+**Package page**:
+One tracked package: category, format, module system, version history with core range sources, the pair matrix, and an "Add to stack" action that returns to the stack builder with the same stack.
+
+**Pair matrix**:
+Versions of one package as rows against versions of another as columns, one verdict per cell. The newest 20 of each side until expanded to all. Prereleases follow the global toggle.
+
 **Latest releases grid**:
 The stack builder's empty state. Every tracked package's latest release against every other, one verdict per cell. Stable releases only unless the prerelease toggle is on.
 

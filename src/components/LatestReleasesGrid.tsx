@@ -1,14 +1,12 @@
 import { Link } from '@tanstack/react-router';
-import { Flex, Modal, Typography } from 'antd';
+import { Flex, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
-import { buildLatestReleasesGrid, versionLabel, type PairEvaluation } from '@/engine';
-
+import { buildLatestReleasesGrid, type PairEvaluation } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
-import { VerdictCell, VerdictDetail, VerdictTag } from './Verdict';
-import { VERDICT_META, VERDICTS } from './verdictMeta';
+import { VerdictCell, VerdictLegend, VerdictModal } from './Verdict';
 
 const { Text } = Typography;
 
@@ -38,8 +36,8 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
       <div className="grid-scroll" tabIndex={0}>
         <table className="verdict-grid">
           <caption className="sr-only">
-            Latest release of every tracked package against every other. Rows and columns are packages; each
-            cell is a verdict.
+            Latest release of every tracked package against every other. Rows and columns are packages; each cell is a
+            verdict.
           </caption>
           <thead>
             <tr>
@@ -71,31 +69,15 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
         </table>
       </div>
 
-      <ul className="verdict-legend" aria-label="Verdict legend">
-        {VERDICTS.map((verdict) => (
-          <li key={verdict}>
-            <VerdictTag verdict={verdict} />
-            <Text type="secondary">{VERDICT_META[verdict].definition}</Text>
-          </li>
-        ))}
-      </ul>
+      <VerdictLegend />
 
-      <Modal
-        open={selected !== null}
-        onCancel={() => setSelected(null)}
-        footer={null}
-        width={720}
-        title={selected ? `${versionLabel(selected.a)} and ${versionLabel(selected.b)}` : ''}
-      >
+      <VerdictModal evaluation={selected} onClose={() => setSelected(null)}>
         {selected && (
-          <Flex vertical gap="middle">
-            <VerdictDetail evaluation={selected} />
-            <Link to="/package/$name" params={{ name: selected.a.name }} search={{ compare: selected.b.name }}>
-              Open this pair on the {selected.a.name} page
-            </Link>
-          </Flex>
+          <Link to="/package/$name" params={{ name: selected.a.name }} search={{ with: selected.b.name }}>
+            Open this pair on the {selected.a.name} page
+          </Link>
         )}
-      </Modal>
+      </VerdictModal>
     </Flex>
   );
 }

@@ -1,5 +1,6 @@
-import { Flex, Table, Tag, Typography } from 'antd';
+import { Flex, Modal, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { ReactNode } from 'react';
 
 import {
   verdictSentence,
@@ -12,7 +13,7 @@ import {
 import type { CoreRange, Verdict } from '@/types/compatibility';
 import { formatRangeForDisplay } from '@/utils/semver';
 
-import { TAG_COLOR, VERDICT_META, useStatusColors } from './verdictMeta';
+import { TAG_COLOR, VERDICT_META, VERDICTS, useStatusColors } from './verdictMeta';
 
 const { Text } = Typography;
 
@@ -48,7 +49,6 @@ export function VerdictCell({ evaluation, onOpen }: VerdictCellProps) {
   );
 }
 
-// A core range with its source: declared, transitive with its origin, or none.
 export function CoreRangeText({ range: r }: { range: CoreRange }) {
   if (r.source === 'none') return <Text type="secondary">none</Text>;
   if (r.source === 'declared') return <code>{r.range}</code>;
@@ -119,5 +119,44 @@ export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
         <Table size="small" pagination={false} rowKey="peer" columns={peerColumns} dataSource={peers} scroll={{ x: 'max-content' }} />
       )}
     </Flex>
+  );
+}
+
+export function VerdictLegend() {
+  return (
+    <ul className="verdict-legend" aria-label="Verdict legend">
+      {VERDICTS.map((verdict) => (
+        <li key={verdict}>
+          <VerdictTag verdict={verdict} />
+          <Text type="secondary">{VERDICT_META[verdict].definition}</Text>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+interface VerdictModalProps {
+  evaluation: PairEvaluation | null;
+  onClose: () => void;
+  children?: ReactNode;
+}
+
+// The detail of one pair, opened from a grid or matrix cell.
+export function VerdictModal({ evaluation, onClose, children }: VerdictModalProps) {
+  return (
+    <Modal
+      open={evaluation !== null}
+      onCancel={onClose}
+      footer={null}
+      width={720}
+      title={evaluation ? `${versionLabel(evaluation.a)} and ${versionLabel(evaluation.b)}` : ''}
+    >
+      {evaluation && (
+        <Flex vertical gap="middle">
+          <VerdictDetail evaluation={evaluation} />
+          {children}
+        </Flex>
+      )}
+    </Modal>
   );
 }
