@@ -16,10 +16,11 @@ import {
   type VersionSet,
 } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
-import type { CoreRange, Package, PackageVersion } from '@/types/compatibility';
+import type { Package, PackageVersion } from '@/types/compatibility';
+import { encodeStackSearch } from '@/utils/stackSearch';
 
 import { InstallLine } from './InstallLine';
-import { VerdictTag } from './Verdict';
+import { CoreRangeText, VerdictTag } from './Verdict';
 
 const { Text, Title } = Typography;
 
@@ -29,27 +30,16 @@ interface Row {
   pinned: boolean;
 }
 
-function coreRangeText(range: CoreRange) {
-  if (range.source === 'none') return <Text type="secondary">none</Text>;
-  return (
-    <span>
-      <code>{range.range}</code>
-      {range.source === 'transitive' && (
-        <Text type="secondary"> from {range.origin.name} {range.origin.version}</Text>
-      )}
-    </span>
-  );
-}
-
-const packageColumn: ColumnsType<Row>[number] = {
+// Package links carry the stack so the package page can come back to it.
+const packageColumn = (stack: string[], pins: Pins): ColumnsType<Row>[number] => ({
   title: 'Package',
   key: 'name',
   render: (_, { chosen }) => (
-    <Link to="/package/$name" params={{ name: chosen.name }}>
+    <Link to="/package/$name" params={{ name: chosen.name }} search={encodeStackSearch(stack, pins)}>
       {chosen.name}
     </Link>
   ),
-};
+});
 
 const chosenColumn: ColumnsType<Row>[number] = {
   title: 'Chosen version',
@@ -68,12 +58,12 @@ const coreRangeColumns = (pick: (row: Row) => PackageVersion, titleSuffix = ''):
     key: core,
     render: (_, row) => {
       const version = pick(row);
-      return version.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(version.coreRanges[core]);
+      return version.name === core ? <Text type="secondary">is the core</Text> : <CoreRangeText range={version.coreRanges[core]} />;
     },
   }));
 
-const columns: ColumnsType<Row> = [
-  packageColumn,
+const columns = (stack: string[], pins: Pins): ColumnsType<Row> => [
+  packageColumn(stack, pins),
   chosenColumn,
   {
     title: 'Newest available',
@@ -84,8 +74,8 @@ const columns: ColumnsType<Row> = [
   ...coreRangeColumns((row) => row.chosen),
 ];
 
-const passedOverColumns: ColumnsType<Row> = [
-  packageColumn,
+const passedOverColumns = (stack: string[], pins: Pins): ColumnsType<Row> => [
+  packageColumn(stack, pins),
   { title: 'Newest available', key: 'newest', render: (_, { newest }) => <code>{newest.version}</code> },
   chosenColumn,
   ...coreRangeColumns((row) => row.newest, ' of the newest'),
@@ -117,7 +107,7 @@ function PairList({ pairs, label }: { pairs: StackPair[]; label: string }) {
 }
 
 // The sentence naming the bottleneck, over one row per stack package whose newest release was passed over.
-function BottleneckNote({ set, rows }: { set: VersionSet; rows: Row[] }) {
+function BottleneckNote({ set, rows, stack, pins }: { set: VersionSet; rows: Row[]; stack: string[]; pins: Pins }) {
   const passedOver = rows.filter(({ chosen, newest }) => chosen !== newest);
   if (passedOver.length === 0) return null;
   const sentence = bottleneckSentence(set);
@@ -139,7 +129,7 @@ function BottleneckNote({ set, rows }: { set: VersionSet; rows: Row[] }) {
                 size="small"
                 pagination={false}
                 rowKey={(row) => row.chosen.name}
-                columns={passedOverColumns}
+                columns={passedOverColumns(stack, pins)}
                 dataSource={passedOver}
                 scroll={{ x: 'max-content' }}
               />
@@ -155,7 +145,7 @@ function toRows(set: VersionSet, pins: Pins): Row[] {
   return set.versions.map((chosen, i) => ({ chosen, newest: set.newest[i], pinned: pins[chosen.name] === chosen.version }));
 }
 
-function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
+function VersionSetPanel({ set, stack, pins }: { set: VersionSet; stack: string[]; pins: Pins }) {
   const rows = toRows(set, pins);
   return (
     <Flex vertical gap="middle">
@@ -163,12 +153,12 @@ function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
         size="small"
         pagination={false}
         rowKey={(row) => row.chosen.name}
-        columns={columns}
+        columns={columns(stack, pins)}
         dataSource={rows}
         scroll={{ x: 'max-content' }}
       />
       <InstallLine versions={set.versions} />
-      <BottleneckNote set={set} rows={rows} />
+      <BottleneckNote set={set} rows={rows} stack={stack} pins={pins} />
       <AnchorLine anchors={set.anchors} />
       <PairList pairs={set.pairs} label="Pair verdicts" />
     </Flex>
@@ -184,7 +174,7 @@ function relaxSentence({ pinToRelax, failing }: NoSet, pinned: boolean): string 
   return 'No geostyler-style or geostyler-data version is accepted by every package in the stack.';
 }
 
-function NoSetView({ result, pins }: { result: NoSet; pins: Pins }) {
+function NoSetView({ result, stack, pins }: { result: NoSet; stack: string[]; pins: Pins }) {
   const pinned = Object.keys(pins).length > 0;
   return (
     <Flex vertical gap="middle">
@@ -199,7 +189,7 @@ function NoSetView({ result, pins }: { result: NoSet; pins: Pins }) {
       {result.partial && (
         <>
           <Title level={5}>Partial set without {result.partial.removed}</Title>
-          <VersionSetPanel set={result.partial.set} pins={pins} />
+          <VersionSetPanel set={result.partial.set} stack={stack.filter((n) => n !== result.partial?.removed)} pins={pins} />
         </>
       )}
     </Flex>
@@ -237,10 +227,10 @@ export function VersionSetView({ packages, stack, pins }: VersionSetViewProps) {
       {result.status === 'found' ? (
         <>
           <Title level={5}>Version set</Title>
-          <VersionSetPanel set={result.set} pins={pins} />
+          <VersionSetPanel set={result.set} stack={stack} pins={pins} />
         </>
       ) : (
-        <NoSetView result={result} pins={pins} />
+        <NoSetView result={result} stack={stack} pins={pins} />
       )}
     </Flex>
   );

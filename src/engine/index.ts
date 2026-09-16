@@ -6,3 +6,5 @@ export { verdictSentence, versionLabel } from './verdictSentence';
 export { bottleneckSentence, buildVersionSet, installCommand, stackPairSentence } from './versionSet';
 export type { Anchors, Bottleneck, NoSet, PartialSet, Pins, PinToRelax, StackPair, VersionSet, VersionSetOptions, VersionSetResult } from './versionSet';
 export { candidateVersions } from './versions';
+export { buildPairMatrix, PAIR_MATRIX_DEFAULT_LIMIT } from './pairMatrix';
+export type { PairMatrix, PairMatrixOptions } from './pairMatrix';
