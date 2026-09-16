@@ -55,9 +55,8 @@ Node is pinned via `.nvmrc` to `24.14.0`. Vitest covers `src/utils/semver.ts`, `
 
 - Commit messages: simple English, conventional-commit style (`feat:`, `fix:`, `chore:`...), one line, no body unless truly necessary.
 - Small atomic commits: one logical concern per commit.
-- AI-assisted commits end with the trailer `Assisted-by: <model name and version> <noreply@anthropic.com>`, naming the model that actually generated the code (e.g. `Assisted-by: Claude Fable 5 <noreply@anthropic.com>`). Do NOT add `Co-Authored-By: Claude...` or a "Generated with..." line. Commits before September 2026 carry `Co-Authored-By` trailers; do not copy them.
 - Never commit on `main`: create a branch first. Branch names are short, in conventional-commit type/scope style, with the issue number when relevant (`feat/charts`, `fix/compare-matrix-12`).
-- Never commit, push, or post PR descriptions/comments without a human explicitly validating the content first.
+- Validate commit messages, PR descriptions and comments by a human if necessary.
 - PR titles: conventional-commit style, issue number when relevant. PR descriptions in English: concise, simple wording, no AI-sounding or corporate jargon. Don't repeat what the linked issue already says. Structure: `Closes #N`, a short "Changes" bullet list, "Validation" when relevant, and an explicit call-out for any deliberate behavior change.
 
 ## Comments
