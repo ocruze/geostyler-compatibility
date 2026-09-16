@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluatePair } from '@/engine/evaluatePair';
-import type { PackageVersion } from '@/types/compatibility';
-import fixture from './__fixtures__/versions.json';
-
-// Real registry-derived records, frozen for the cases the old model got wrong.
-const records = fixture as PackageVersion[];
-const fx = (name: string, version: string): PackageVersion => {
-  const record = records.find((r) => r.name === name && r.version === version);
-  if (!record) throw new Error(`fixture missing ${name}@${version}`);
-  return record;
-};
+import { fx } from './__fixtures__/versions';
 
 describe('evaluatePair', () => {
   it('geostyler 18.6.0 with mapbox-parser 6.2.0 is Shipped together', () => {
@@ -37,18 +28,16 @@ describe('evaluatePair', () => {
     expect(result.declared).toEqual([]);
   });
 
-  it('geostyler-style 13.0.0 with sld-parser 9.0.3 is Compatible when the version satisfies the range', () => {
-    const result = evaluatePair(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler-style', '13.0.0'));
-    expect(result.verdict).toBe('risk');
-    const stable = evaluatePair(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler-style', '12.0.0'));
-    expect(stable.verdict).toBe('compatible');
+  it('the core package is Compatible with a parser only when its version satisfies the range', () => {
+    expect(evaluatePair(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler-style', '12.0.0')).verdict).toBe('compatible');
+    expect(evaluatePair(fx('geostyler-sld-parser', '9.0.3'), fx('geostyler-style', '13.0.0')).verdict).toBe('risk');
   });
 
   it('geostyler-data 1.1.0 with geojson-parser 2.0.0 is Compatible', () => {
     const result = evaluatePair(fx('geostyler-data', '1.1.0'), fx('geostyler-geojson-parser', '2.0.0'));
     expect(result.verdict).toBe('compatible');
     expect(result.core).toEqual([
-      expect.objectContaining({ core: 'geostyler-data', outcome: 'agree' }),
+      expect.objectContaining({ core: 'geostyler-data', outcome: 'intersect' }),
     ]);
   });
 
@@ -56,7 +45,7 @@ describe('evaluatePair', () => {
     const result = evaluatePair(fx('geostyler-legend', '2.2.0'), fx('geostyler-openlayers-parser', '4.1.2'));
     expect(result.verdict).toBe('conflict');
     expect(result.peers).toEqual([
-      expect.objectContaining({ peer: 'ol', intersection: null }),
+      expect.objectContaining({ peer: 'ol', outcome: 'disjoint' }),
     ]);
   });
 
@@ -77,7 +66,7 @@ describe('evaluatePair', () => {
     const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-sld-parser', '9.0.3'));
     expect(result.verdict).toBe('unknown');
     expect(result.core).toEqual([
-      expect.objectContaining({ core: 'geostyler-style', outcome: 'unknown' }),
+      expect.objectContaining({ core: 'geostyler-style', outcome: 'missing' }),
     ]);
   });
 
@@ -86,20 +75,15 @@ describe('evaluatePair', () => {
     expect(result.verdict).toBe('unknown');
   });
 
-  it('an unsatisfied exact pin is Duplicate even when the core range is unknown', () => {
+  it('an unsatisfied declared dependency with a missing core range is Unknown, not Duplicate', () => {
     const result = evaluatePair(fx('geostyler-legend', '5.2.0'), fx('geostyler-openlayers-parser', '5.7.1'));
-    expect(result.verdict).toBe('duplicate');
+    expect(result.verdict).toBe('unknown');
+    expect(result.declared).toEqual([expect.objectContaining({ range: '5.1.2', satisfied: false })]);
   });
 
-  it('a declared dependency the chosen version does not satisfy is Duplicate', () => {
-    const geostyler = fx('geostyler', '18.6.0');
-    // Same core range as geostyler but outside its declared ^5.7.0 range.
-    const oldParser: PackageVersion = {
-      ...fx('geostyler-openlayers-parser', '5.7.1'),
-      version: '5.6.0',
-      peerDependencies: {},
-    };
-    const result = evaluatePair(geostyler, oldParser);
+  it('a declared dependency the chosen version does not satisfy is Duplicate when core ranges intersect', () => {
+    // geostyler 18.6.0 declares openlayers-parser ^5.7.0; 5.6.1 shares its geostyler-style major.
+    const result = evaluatePair(fx('geostyler', '18.6.0'), fx('geostyler-openlayers-parser', '5.6.1'));
     expect(result.verdict).toBe('duplicate');
     expect(result.declared).toEqual([
       expect.objectContaining({ from: 'geostyler', to: 'geostyler-openlayers-parser', satisfied: false }),

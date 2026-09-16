@@ -398,5 +398,38 @@
     "changelogUrl": "https://github.com/geostyler/geostyler-openlayers-parser/blob/main/CHANGELOG.md",
     "npmUrl": "https://www.npmjs.com/package/geostyler-openlayers-parser/v/5.7.1",
     "format": "OpenLayers"
+  },
+  {
+    "name": "geostyler-openlayers-parser",
+    "version": "5.6.1",
+    "category": "style-parser",
+    "dependencies": {
+      "css-font-parser": "^2.0.0",
+      "geostyler-style": "^11.0.1"
+    },
+    "peerDependencies": {
+      "ol": ">=7.4"
+    },
+    "coreRanges": {
+      "geostyler-style": {
+        "source": "declared",
+        "range": "^11.0.1"
+      },
+      "geostyler-data": {
+        "source": "none"
+      }
+    },
+    "declaredDependencies": {
+      "geostyler-style": "^11.0.1"
+    },
+    "moduleSystem": "esm",
+    "geostylerStyleRange": "^11.0.1",
+    "esmSupport": true,
+    "publishDate": "2026-04-16T15:11:44.697Z",
+    "isPrerelease": false,
+    "repositoryUrl": "https://github.com/geostyler/geostyler-openlayers-parser",
+    "changelogUrl": "https://github.com/geostyler/geostyler-openlayers-parser/blob/main/CHANGELOG.md",
+    "npmUrl": "https://www.npmjs.com/package/geostyler-openlayers-parser/v/5.6.1",
+    "format": "OpenLayers"
   }
 ]

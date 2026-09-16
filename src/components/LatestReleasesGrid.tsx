@@ -2,11 +2,11 @@ import { Link } from '@tanstack/react-router';
 import { Flex, Modal, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
-import { buildLatestReleasesGrid, verdictSentence, type PairEvaluation } from '@/engine';
+import { buildLatestReleasesGrid, versionLabel, type PairEvaluation } from '@/engine';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
-import { VerdictDetail, VerdictTag } from './Verdict';
-import { VERDICT_META, VERDICTS, useVerdictColors } from './verdictMeta';
+import { VerdictCell, VerdictDetail, VerdictTag } from './Verdict';
+import { VERDICT_META, VERDICTS } from './verdictMeta';
 
 const { Text } = Typography;
 
@@ -26,13 +26,8 @@ function HeaderLink({ version, short }: { version: PackageVersion; short?: boole
   );
 }
 
-/**
- * Every tracked package's latest stable release against every other, one
- * verdict per cell. Clicking a cell opens the per-axis detail.
- */
 export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
   const grid = useMemo(() => buildLatestReleasesGrid(packages), [packages]);
-  const colors = useVerdictColors();
   const [selected, setSelected] = useState<PairEvaluation | null>(null);
 
   return (
@@ -61,26 +56,9 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
                 </th>
                 {grid.versions.map((col, j) => {
                   const cell = grid.cells[i][j];
-                  if (!cell) {
-                    return (
-                      <td key={col.name} className="verdict-grid__self">
-                        <span className="sr-only">Same package</span>
-                      </td>
-                    );
-                  }
-                  const meta = VERDICT_META[cell.verdict];
-                  const color = colors[cell.verdict];
                   return (
-                    <td key={col.name}>
-                      <button
-                        type="button"
-                        className="verdict-cell"
-                        style={{ backgroundColor: color.bg, borderColor: color.border, color: color.fg }}
-                        aria-label={`${row.name} ${row.version} and ${col.name} ${col.version}: ${meta.label}. ${verdictSentence(cell)} Open details.`}
-                        onClick={() => setSelected(cell)}
-                      >
-                        {meta.icon}
-                      </button>
+                    <td key={col.name} className={cell ? undefined : 'verdict-grid__self'}>
+                      {cell ? <VerdictCell evaluation={cell} onOpen={setSelected} /> : <span className="sr-only">Same package</span>}
                     </td>
                   );
                 })}
@@ -104,7 +82,7 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
         onCancel={() => setSelected(null)}
         footer={null}
         width={720}
-        title={selected ? `${selected.a.name} ${selected.a.version} and ${selected.b.name} ${selected.b.version}` : ''}
+        title={selected ? `${versionLabel(selected.a)} and ${versionLabel(selected.b)}` : ''}
       >
         {selected && <VerdictDetail evaluation={selected} />}
       </Modal>

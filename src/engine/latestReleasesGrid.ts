@@ -1,10 +1,7 @@
 import { evaluatePair, type PairEvaluation } from '@/engine/evaluatePair';
 import type { Package, PackageVersion } from '@/types/compatibility';
 
-/**
- * The newest stable version of a package. Falls back to the newest prerelease
- * when the package has no stable release at all. Versions are newest-first.
- */
+// Versions are newest-first; a package with no stable release uses its newest prerelease.
 export function latestStableVersion(pkg: Package): PackageVersion | undefined {
   return pkg.versions.find((v) => !v.isPrerelease) ?? pkg.versions[0];
 }
@@ -15,9 +12,6 @@ export interface LatestReleasesGrid {
   cells: (PairEvaluation | null)[][];
 }
 
-/**
- * Every tracked package's latest stable release against every other.
- */
 export function buildLatestReleasesGrid(packages: Package[]): LatestReleasesGrid {
   const versions = packages
     .map(latestStableVersion)

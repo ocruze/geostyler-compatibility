@@ -2,14 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { evaluatePair } from '@/engine/evaluatePair';
 import { verdictSentence } from '@/engine/verdictSentence';
 import type { PackageVersion } from '@/types/compatibility';
-import fixture from './__fixtures__/versions.json';
 
-const records = fixture as PackageVersion[];
-const fx = (name: string, version: string): PackageVersion => {
-  const record = records.find((r) => r.name === name && r.version === version);
-  if (!record) throw new Error(`fixture missing ${name}@${version}`);
-  return record;
-};
+import { fx, records } from './__fixtures__/versions';
 const sentence = (a: PackageVersion, b: PackageVersion) => verdictSentence(evaluatePair(a, b));
 
 describe('verdictSentence', () => {
@@ -34,8 +28,8 @@ describe('verdictSentence', () => {
   });
 
   it('names both copies on Duplicate', () => {
-    expect(sentence(fx('geostyler-legend', '5.2.0'), fx('geostyler-openlayers-parser', '5.7.1')))
-      .toBe('Installs two copies of geostyler-openlayers-parser. Works, but geostyler-legend uses its own bundled copy.');
+    expect(sentence(fx('geostyler', '18.6.0'), fx('geostyler-openlayers-parser', '5.6.1')))
+      .toBe('Installs two copies of geostyler-openlayers-parser. Works, but geostyler uses its own bundled copy.');
   });
 
   it('never mentions the module system', () => {

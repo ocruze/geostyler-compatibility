@@ -146,8 +146,7 @@
 
 /* --- Verdict grid ------------------------------------------------------ */
 
-/* Grids scroll inside their own container so the page body never scrolls sideways.
-   Positioned so visually hidden (absolute) descendants are clipped too. */
+/* Grids scroll in their own container; positioned so hidden (absolute) descendants clip too. */
 .grid-scroll {
   position: relative;
   overflow-x: auto;

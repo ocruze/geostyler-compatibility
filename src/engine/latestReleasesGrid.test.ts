@@ -1,14 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildLatestReleasesGrid, latestStableVersion } from '@/engine/latestReleasesGrid';
 import type { Package, PackageVersion } from '@/types/compatibility';
-import fixture from './__fixtures__/versions.json';
 
-const records = fixture as PackageVersion[];
-const fx = (name: string, version: string): PackageVersion => {
-  const record = records.find((r) => r.name === name && r.version === version);
-  if (!record) throw new Error(`fixture missing ${name}@${version}`);
-  return record;
-};
+import { fx } from './__fixtures__/versions';
 
 // Versions newest-first, as in the dataset.
 const pkg = (name: string, versions: PackageVersion[], category: Package['category']): Package => ({

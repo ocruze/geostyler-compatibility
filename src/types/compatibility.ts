@@ -132,9 +132,7 @@ export interface CompatibilityMatrix {
 }
 
 
-/**
- * The aggregate outcome for one pair of package versions (ADR-0004).
- */
+// The aggregate outcome for one pair of package versions (ADR-0004).
 export type Verdict =
   | 'conflict'
   | 'risk'

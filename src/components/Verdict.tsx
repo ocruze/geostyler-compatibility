@@ -1,46 +1,68 @@
 import { Flex, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
-import { verdictSentence, type CoreAxis, type DeclaredDependencyAxis, type PairEvaluation, type SharedPeerAxis } from '@/engine';
-import type { CoreRange, PackageVersion, Verdict } from '@/types/compatibility';
+import {
+  verdictSentence,
+  versionLabel,
+  type CoreAxis,
+  type DeclaredDependencyAxis,
+  type PairEvaluation,
+  type SharedPeerAxis,
+} from '@/engine';
+import type { CoreRange, Verdict } from '@/types/compatibility';
 import { formatRangeForDisplay } from '@/utils/semver';
 
-import { VERDICT_META } from './verdictMeta';
+import { TAG_COLOR, VERDICT_META, useStatusColors } from './verdictMeta';
 
 const { Text } = Typography;
 
-const label = (v: PackageVersion) => `${v.name} ${v.version}`;
-
-/**
- * Compact verdict: icon and label in a coloured tag. Used in grids and tables.
- */
 export function VerdictTag({ verdict }: { verdict: Verdict }) {
   const meta = VERDICT_META[verdict];
   return (
-    <Tag color={meta.tagColor} icon={meta.icon}>
+    <Tag color={TAG_COLOR[meta.status]} icon={meta.icon}>
       {meta.label}
     </Tag>
+  );
+}
+
+interface VerdictCellProps {
+  evaluation: PairEvaluation;
+  onOpen: (evaluation: PairEvaluation) => void;
+}
+
+// One grid or matrix cell: icon on the verdict colour, the full sentence in the label.
+export function VerdictCell({ evaluation, onOpen }: VerdictCellProps) {
+  const meta = VERDICT_META[evaluation.verdict];
+  const color = useStatusColors()[meta.status];
+  const { a, b } = evaluation;
+  return (
+    <button
+      type="button"
+      className="verdict-cell"
+      style={{ backgroundColor: color.bg, borderColor: color.border, color: color.fg }}
+      aria-label={`${versionLabel(a)} and ${versionLabel(b)}: ${meta.label}. ${verdictSentence(evaluation)} Open details.`}
+      onClick={() => onOpen(evaluation)}
+    >
+      {meta.icon}
+    </button>
   );
 }
 
 const rangeText = (r: CoreRange) => (r.source === 'none' ? <Text type="secondary">none</Text> : <code>{r.range}</code>);
 
 const OUTCOME_LABEL: Record<CoreAxis['outcome'], string> = {
-  agree: 'Intersect',
+  intersect: 'Intersect',
   disjoint: 'Disjoint',
-  unknown: 'Missing',
+  missing: 'Missing',
 };
 
-/**
- * Full verdict: tag, sentence and the per-axis detail.
- */
 export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
   const { a, b, verdict, core, declared, peers } = evaluation;
 
   const coreColumns: ColumnsType<CoreAxis> = [
     { title: 'Core package', dataIndex: 'core', render: (c: string) => <code>{c}</code> },
-    { title: label(a), key: 'a', render: (_, axis) => (a.name === axis.core ? <code>{a.version}</code> : rangeText(axis.a)) },
-    { title: label(b), key: 'b', render: (_, axis) => (b.name === axis.core ? <code>{b.version}</code> : rangeText(axis.b)) },
+    { title: versionLabel(a), key: 'a', render: (_, axis) => (a.name === axis.core ? <code>{a.version}</code> : rangeText(axis.a)) },
+    { title: versionLabel(b), key: 'b', render: (_, axis) => (b.name === axis.core ? <code>{b.version}</code> : rangeText(axis.b)) },
     {
       title: 'Outcome',
       key: 'outcome',
@@ -59,12 +81,13 @@ export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
 
   const peerColumns: ColumnsType<SharedPeerAxis> = [
     { title: 'Shared peer', dataIndex: 'peer', render: (n: string) => <code>{n}</code> },
-    { title: label(a), dataIndex: 'a', render: (r: string) => <code>{r}</code> },
-    { title: label(b), dataIndex: 'b', render: (r: string) => <code>{r}</code> },
+    { title: versionLabel(a), dataIndex: 'a', render: (r: string) => <code>{r}</code> },
+    { title: versionLabel(b), dataIndex: 'b', render: (r: string) => <code>{r}</code> },
     {
       title: 'Outcome',
-      dataIndex: 'intersection',
-      render: (r: string | null) => (r ? <code>{formatRangeForDisplay(r)}</code> : 'Disjoint'),
+      key: 'outcome',
+      render: (_, axis) =>
+        axis.intersection ? <code>{formatRangeForDisplay(axis.intersection)}</code> : OUTCOME_LABEL[axis.outcome],
     },
   ];
 
