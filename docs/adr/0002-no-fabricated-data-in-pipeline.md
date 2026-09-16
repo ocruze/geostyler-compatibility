@@ -1,0 +1,3 @@
+# The data pipeline never fabricates values
+
+`scripts/fetch-metadata.ts` passes npm metadata through unchanged. A missing `publishDate` stays empty, `dependencies` are never injected, `latestVersion` comes only from the `latest` dist-tag, and ESM support is read from `type`/`module`/`exports` rather than guessed from version numbers. Earlier versions backdated missing dates to "now", injected a fake `geostyler-data` dependency into every data parser, and used a hand-maintained ESM threshold map. Those produced confident wrong verdicts. UI code must handle empty fields rather than the pipeline inventing them.
