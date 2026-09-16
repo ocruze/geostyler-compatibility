@@ -17,7 +17,7 @@ A web interface for checking compatibility between GeoStyler packages — style 
 
 1. **Fetch Metadata** ([scripts/fetch-metadata.ts](scripts/fetch-metadata.ts))
    - Pulls package data from npm registry
-   - Outputs: `src/data/packages.json`
+   - Outputs: `src/data/packages.json` (`{ generatedAt, packages }`; the app footer shows `generatedAt` as a UTC date)
 
 2. **Compute Compatibility** ([scripts/compute-compatibility.ts](scripts/compute-compatibility.ts))
    - Analyzes geostyler-style version ranges

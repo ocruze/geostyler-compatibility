@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { 
+  Dataset,
   Package, 
   PackageVersion, 
   CompatibilityCheck, 
@@ -193,7 +194,7 @@ async function main() {
     process.exit(1);
   }
   
-  const packages: Package[] = JSON.parse(fs.readFileSync(INPUT_FILE, 'utf-8'));
+  const { packages }: Dataset = JSON.parse(fs.readFileSync(INPUT_FILE, 'utf-8'));
   console.log(`Loaded ${packages.length} packages`);
   
   // Generate compatibility checks
