@@ -62,7 +62,7 @@ _Avoid_: combination, recommended versions
 The core package version a version set agrees on, one per core package the stack constrains. The engine searches anchors newest-first, `geostyler-style` outer and `geostyler-data` inner.
 
 **Bottleneck**:
-The stack package whose removal moves the anchor furthest forward. Named, with the anchor the set would reach without it, whenever a version set passes over a newest release; absent when every chosen version is the newest or no single removal helps.
+The stack package whose removal moves the anchor furthest forward; on a tie, the one whose newest release was passed over. The `geostyler-style` anchor is compared when the set has one, the `geostyler-data` anchor otherwise. Named with the anchor the set would reach without it, whenever a version set passes over a newest release. Absent when every chosen version is the newest, or when no single removal helps.
 
 ### Pair evaluation
 

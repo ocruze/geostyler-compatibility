@@ -137,6 +137,15 @@ describe('buildVersionSet', () => {
       expect(found(result).newest.map((v) => v.version)).toEqual(['18.6.0', '9.0.3']);
     });
 
+    it('keeps a pin outside the anchors only through a declared dependency', () => {
+      const alone = buildVersionSet(packages, ['geostyler-sld-parser'], { pins: { 'geostyler-sld-parser': '8.2.0' } });
+      expect(found(alone).anchors['geostyler-style']?.version).toBe('10.5.0');
+      const declared = buildVersionSet(packages, ['geostyler', 'geostyler-mapbox-parser'], {
+        pins: { 'geostyler-mapbox-parser': '6.2.0' },
+      });
+      expect(found(declared).anchors['geostyler-style']?.version).toBe('11.1.0');
+    });
+
     it('turns a pinned core package into the anchor', () => {
       const result = buildVersionSet(packages, ['geostyler-style', 'geostyler-sld-parser'], {
         pins: { 'geostyler-style': '11.1.0' },
@@ -217,9 +226,9 @@ describe('buildVersionSet', () => {
         'geostyler-legend': '5.2.0',
       });
       expect(set.bottleneck?.name).toBe('geostyler-legend');
-      expect(set.bottleneck?.newest.version).toBe('5.2.1');
+      expect(set.bottleneck?.held.version).toBe('5.2.1');
       expect(bottleneckSentence(set)).toBe(
-        'geostyler-legend holds the set at geostyler-style 10.5.0. Without it the set would move to geostyler-style 11.1.0; its newest release 5.2.1 (geostyler-style ^11.0.2) fits no newer set.',
+        'geostyler-legend holds the set at geostyler-style 10.5.0. Without it the set would move to geostyler-style 11.1.0; no set at that anchor keeps its newest release 5.2.1.',
       );
     });
 
@@ -233,6 +242,28 @@ describe('buildVersionSet', () => {
       const set = found(result);
       expect(set.bottleneck?.name).toBe('geostyler-openlayers-parser');
       expect(chosen(result)['geostyler-sld-parser']).toBe('8.4.2');
+    });
+
+    it('blames the pin when the pin holds the anchor', () => {
+      const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-openlayers-parser'], {
+        pins: { 'geostyler-sld-parser': '8.2.0' },
+      });
+      const set = found(result);
+      expect(set.anchors['geostyler-style']?.version).toBe('10.5.0');
+      expect(set.bottleneck?.name).toBe('geostyler-sld-parser');
+      expect(bottleneckSentence(set)).toBe(
+        'geostyler-sld-parser holds the set at geostyler-style 10.5.0. Without it the set would move to geostyler-style 11.1.0; no set at that anchor keeps its pinned version 8.2.0.',
+      );
+    });
+
+    it('is computed for a partial set too', () => {
+      const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser', 'geostyler-legend'], {
+        pins: { 'geostyler-sld-parser': '9.0.3' },
+      });
+      if (result.status !== 'none') throw new Error('expected no set');
+      expect(result.partial?.removed).toBe('geostyler-sld-parser');
+      expect(result.partial?.set.anchors['geostyler-style']?.version).toBe('10.5.0');
+      expect(result.partial?.set.bottleneck?.name).toBe('geostyler-legend');
     });
   });
 });

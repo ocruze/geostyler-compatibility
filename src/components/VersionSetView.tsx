@@ -41,39 +41,54 @@ function coreRangeText(range: CoreRange) {
   );
 }
 
+const packageColumn: ColumnsType<Row>[number] = {
+  title: 'Package',
+  key: 'name',
+  render: (_, { chosen }) => (
+    <Link to="/package/$name" params={{ name: chosen.name }}>
+      {chosen.name}
+    </Link>
+  ),
+};
+
+const chosenColumn: ColumnsType<Row>[number] = {
+  title: 'Chosen version',
+  key: 'version',
+  render: (_, { chosen, pinned }) => (
+    <>
+      <code>{chosen.version}</code> {pinned && <Tag>pinned</Tag>}
+    </>
+  ),
+};
+
+// One column per core package, showing the range of the version `pick` returns.
+const coreRangeColumns = (pick: (row: Row) => PackageVersion, titleSuffix = ''): ColumnsType<Row> =>
+  CORE_PACKAGES.map((core) => ({
+    title: `${core} range${titleSuffix}`,
+    key: core,
+    render: (_, row) => {
+      const version = pick(row);
+      return version.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(version.coreRanges[core]);
+    },
+  }));
+
 const columns: ColumnsType<Row> = [
-  {
-    title: 'Package',
-    key: 'name',
-    render: (_, { chosen }) => (
-      <Link to="/package/$name" params={{ name: chosen.name }}>
-        {chosen.name}
-      </Link>
-    ),
-  },
-  {
-    title: 'Chosen version',
-    key: 'version',
-    render: (_, { chosen, pinned }) => (
-      <>
-        <code>{chosen.version}</code> {pinned && <Tag>pinned</Tag>}
-      </>
-    ),
-  },
+  packageColumn,
+  chosenColumn,
   {
     title: 'Newest available',
     key: 'newest',
     render: (_, { chosen, newest }) =>
       newest.version === chosen.version ? <Tag color="success">newest</Tag> : <code>{newest.version}</code>,
   },
-  ...CORE_PACKAGES.map(
-    (core): ColumnsType<Row>[number] => ({
-      title: `${core} range`,
-      key: core,
-      render: (_, { chosen }) =>
-        chosen.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(chosen.coreRanges[core]),
-    }),
-  ),
+  ...coreRangeColumns((row) => row.chosen),
+];
+
+const passedOverColumns: ColumnsType<Row> = [
+  packageColumn,
+  { title: 'Newest available', key: 'newest', render: (_, { newest }) => <code>{newest.version}</code> },
+  chosenColumn,
+  ...coreRangeColumns((row) => row.newest, ' of the newest'),
 ];
 
 function AnchorLine({ anchors }: { anchors: Anchors }) {
@@ -101,21 +116,7 @@ function PairList({ pairs, label }: { pairs: StackPair[]; label: string }) {
   );
 }
 
-// One row per stack package whose newest release was passed over.
-const passedOverColumns: ColumnsType<Row> = [
-  columns[0],
-  { title: 'Newest release', key: 'newest', render: (_, { newest }) => <code>{newest.version}</code> },
-  { title: 'Chosen instead', key: 'chosen', render: (_, { chosen }) => <code>{chosen.version}</code> },
-  ...CORE_PACKAGES.map(
-    (core): ColumnsType<Row>[number] => ({
-      title: `${core} range of the newest`,
-      key: core,
-      render: (_, { newest }) =>
-        newest.name === core ? <Text type="secondary">is the core</Text> : coreRangeText(newest.coreRanges[core]),
-    }),
-  ),
-];
-
+// The sentence naming the bottleneck, over one row per stack package whose newest release was passed over.
 function BottleneckNote({ set, rows }: { set: VersionSet; rows: Row[] }) {
   const passedOver = rows.filter(({ chosen, newest }) => chosen !== newest);
   if (passedOver.length === 0) return null;
@@ -150,12 +151,12 @@ function BottleneckNote({ set, rows }: { set: VersionSet; rows: Row[] }) {
   );
 }
 
+function toRows(set: VersionSet, pins: Pins): Row[] {
+  return set.versions.map((chosen, i) => ({ chosen, newest: set.newest[i], pinned: pins[chosen.name] === chosen.version }));
+}
+
 function VersionSetPanel({ set, pins }: { set: VersionSet; pins: Pins }) {
-  const rows: Row[] = set.versions.map((chosen, i) => ({
-    chosen,
-    newest: set.newest[i],
-    pinned: pins[chosen.name] === chosen.version,
-  }));
+  const rows = toRows(set, pins);
   return (
     <Flex vertical gap="middle">
       <Table<Row>
