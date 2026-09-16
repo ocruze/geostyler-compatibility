@@ -17,7 +17,7 @@ import {
 } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageVersion } from '@/types/compatibility';
-import { encodeStackSearch } from '@/utils/stackSearch';
+import { encodeStackSearch, type StackSelection } from '@/utils/stackSearch';
 
 import { InstallLine } from './InstallLine';
 import { CoreRangeText, VerdictTag } from './Verdict';
@@ -31,11 +31,11 @@ interface Row {
 }
 
 // Package links carry the stack so the package page can come back to it.
-const packageColumn = (stack: string[], pins: Pins): ColumnsType<Row>[number] => ({
+const packageColumn = (selection: StackSelection): ColumnsType<Row>[number] => ({
   title: 'Package',
   key: 'name',
   render: (_, { chosen }) => (
-    <Link to="/package/$name" params={{ name: chosen.name }} search={encodeStackSearch(stack, pins)}>
+    <Link to="/package/$name" params={{ name: chosen.name }} search={encodeStackSearch(selection)}>
       {chosen.name}
     </Link>
   ),
@@ -62,8 +62,8 @@ const coreRangeColumns = (pick: (row: Row) => PackageVersion, titleSuffix = ''):
     },
   }));
 
-const columns = (stack: string[], pins: Pins): ColumnsType<Row> => [
-  packageColumn(stack, pins),
+const columns = (selection: StackSelection): ColumnsType<Row> => [
+  packageColumn(selection),
   chosenColumn,
   {
     title: 'Newest available',
@@ -74,8 +74,8 @@ const columns = (stack: string[], pins: Pins): ColumnsType<Row> => [
   ...coreRangeColumns((row) => row.chosen),
 ];
 
-const passedOverColumns = (stack: string[], pins: Pins): ColumnsType<Row> => [
-  packageColumn(stack, pins),
+const passedOverColumns = (selection: StackSelection): ColumnsType<Row> => [
+  packageColumn(selection),
   { title: 'Newest available', key: 'newest', render: (_, { newest }) => <code>{newest.version}</code> },
   chosenColumn,
   ...coreRangeColumns((row) => row.newest, ' of the newest'),
@@ -107,7 +107,7 @@ function PairList({ pairs, label }: { pairs: StackPair[]; label: string }) {
 }
 
 // The sentence naming the bottleneck, over one row per stack package whose newest release was passed over.
-function BottleneckNote({ set, rows, stack, pins }: { set: VersionSet; rows: Row[]; stack: string[]; pins: Pins }) {
+function BottleneckNote({ set, rows, selection }: { set: VersionSet; rows: Row[]; selection: StackSelection }) {
   const passedOver = rows.filter(({ chosen, newest }) => chosen !== newest);
   if (passedOver.length === 0) return null;
   const sentence = bottleneckSentence(set);
@@ -129,7 +129,7 @@ function BottleneckNote({ set, rows, stack, pins }: { set: VersionSet; rows: Row
                 size="small"
                 pagination={false}
                 rowKey={(row) => row.chosen.name}
-                columns={passedOverColumns(stack, pins)}
+                columns={passedOverColumns(selection)}
                 dataSource={passedOver}
                 scroll={{ x: 'max-content' }}
               />
@@ -145,20 +145,20 @@ function toRows(set: VersionSet, pins: Pins): Row[] {
   return set.versions.map((chosen, i) => ({ chosen, newest: set.newest[i], pinned: pins[chosen.name] === chosen.version }));
 }
 
-function VersionSetPanel({ set, stack, pins }: { set: VersionSet; stack: string[]; pins: Pins }) {
-  const rows = toRows(set, pins);
+function VersionSetPanel({ set, selection }: { set: VersionSet; selection: StackSelection }) {
+  const rows = toRows(set, selection.pins);
   return (
     <Flex vertical gap="middle">
       <Table<Row>
         size="small"
         pagination={false}
         rowKey={(row) => row.chosen.name}
-        columns={columns(stack, pins)}
+        columns={columns(selection)}
         dataSource={rows}
         scroll={{ x: 'max-content' }}
       />
       <InstallLine versions={set.versions} />
-      <BottleneckNote set={set} rows={rows} stack={stack} pins={pins} />
+      <BottleneckNote set={set} rows={rows} selection={selection} />
       <AnchorLine anchors={set.anchors} />
       <PairList pairs={set.pairs} label="Pair verdicts" />
     </Flex>
@@ -174,7 +174,8 @@ function relaxSentence({ pinToRelax, failing }: NoSet, pinned: boolean): string 
   return 'No geostyler-style or geostyler-data version is accepted by every package in the stack.';
 }
 
-function NoSetView({ result, stack, pins }: { result: NoSet; stack: string[]; pins: Pins }) {
+function NoSetView({ result, selection }: { result: NoSet; selection: StackSelection }) {
+  const { stack, pins } = selection;
   const pinned = Object.keys(pins).length > 0;
   return (
     <Flex vertical gap="middle">
@@ -189,7 +190,7 @@ function NoSetView({ result, stack, pins }: { result: NoSet; stack: string[]; pi
       {result.partial && (
         <>
           <Title level={5}>Partial set without {result.partial.removed}</Title>
-          <VersionSetPanel set={result.partial.set} stack={stack.filter((n) => n !== result.partial?.removed)} pins={pins} />
+          <VersionSetPanel set={result.partial.set} selection={{ stack: stack.filter((n) => n !== result.partial?.removed), pins }} />
         </>
       )}
     </Flex>
@@ -208,13 +209,8 @@ function IgnoredPins({ names, pins }: { names: string[]; pins: Pins }) {
   );
 }
 
-interface VersionSetViewProps {
-  packages: Package[];
-  stack: string[];
-  pins: Pins;
-}
-
-export function VersionSetView({ packages, stack, pins }: VersionSetViewProps) {
+export function VersionSetView({ packages, selection }: { packages: Package[]; selection: StackSelection }) {
+  const { stack, pins } = selection;
   const [includePrereleases] = usePrereleases();
   const result = useMemo(
     () => buildVersionSet(packages, stack, { includePrereleases, pins }),
@@ -227,10 +223,10 @@ export function VersionSetView({ packages, stack, pins }: VersionSetViewProps) {
       {result.status === 'found' ? (
         <>
           <Title level={5}>Version set</Title>
-          <VersionSetPanel set={result.set} stack={stack} pins={pins} />
+          <VersionSetPanel set={result.set} selection={selection} />
         </>
       ) : (
-        <NoSetView result={result} stack={stack} pins={pins} />
+        <NoSetView result={result} selection={selection} />
       )}
     </Flex>
   );
