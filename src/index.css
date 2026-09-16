@@ -126,3 +126,93 @@
     width: 100%;
   }
 }
+
+.app-title a {
+  color: inherit;
+}
+
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Verdict grid ------------------------------------------------------ */
+
+/* Grids scroll in their own container; positioned so hidden (absolute) descendants clip too. */
+.grid-scroll {
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.verdict-grid {
+  border-collapse: separate;
+  border-spacing: 4px;
+}
+
+.verdict-grid th {
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.verdict-grid thead th {
+  vertical-align: bottom;
+}
+
+.verdict-grid td {
+  padding: 0;
+  text-align: center;
+}
+
+.verdict-cell {
+  width: 100%;
+  min-width: 56px;
+  height: 40px;
+  border: 2px solid;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.verdict-cell:hover,
+.verdict-cell:focus-visible {
+  filter: brightness(0.94);
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.verdict-grid__self {
+  background: repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.06) 6px 8px);
+  border-radius: 6px;
+}
+
+.verdict-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px 16px;
+}
+
+.verdict-legend li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 13px;
+}

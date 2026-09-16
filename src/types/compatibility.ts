@@ -131,3 +131,13 @@ export interface CompatibilityMatrix {
   checks: Record<string, CompatibilityCheck>; // key: "pkg1@v1,pkg2@v2"
 }
 
+
+// The aggregate outcome for one pair of package versions (ADR-0004).
+export type Verdict =
+  | 'conflict'
+  | 'risk'
+  | 'duplicate'
+  | 'shipped-together'
+  | 'compatible'
+  | 'independent'
+  | 'unknown';
