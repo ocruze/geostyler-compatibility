@@ -74,7 +74,7 @@ npm install
 The site automatically deploys to GitHub Pages via GitHub Actions:
 
 - **Trigger**: Push to `main`, daily at midnight UTC, or manual dispatch
-- **Build**: Fetches fresh package data, computes compatibility, builds SPA
+- **Build**: Fetches fresh package data, computes compatibility, builds SPA, then copies `dist/index.html` to `dist/404.html` so GitHub Pages serves the app for deep links
 - **Deploy**: Uploads `./dist` as a Pages artifact via `actions/upload-pages-artifact` + `actions/deploy-pages` — no `gh-pages` branch
 
 ### GitHub Actions Workflow

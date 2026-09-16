@@ -43,7 +43,7 @@ Node is pinned via `.nvmrc` to `24.14.0`. Vitest covers `src/utils/semver.ts`, `
 
 - **Vite base path is hardcoded** `base: "/geostyler-compatibility/"` in `vite.config.ts` (for the GitHub Pages subpath); the router picks this up via `import.meta.env.BASE_URL`. Plugins: `tanstackRouter({ target: 'react', autoCodeSplitting: true })` then `react()`. Path alias `@` → `./src` (mirrors the tsconfig `@/*` alias).
 - `tsconfig.json`: bundler resolution, `target ES2020`, `strict` + `noUnusedLocals`/`noUnusedParameters`/`noFallthroughCasesInSwitch`, `noEmit`. Path alias `@/* → ./src/*`. `include: ["src", "scripts"]`.
-- **Deploy**: `.github/workflows/build-deploy.yml` — triggers on push to `main`, daily cron (midnight UTC), or manual dispatch. Steps: `npm ci` → `fetch-metadata` → `compute-compatibility` → `build` → upload `./dist` as a Pages artifact → `actions/deploy-pages`. Uses Node from `.nvmrc`.
+- **Deploy**: `.github/workflows/build-deploy.yml` — triggers on push to `main`, daily cron (midnight UTC), or manual dispatch. Steps: `npm ci` → `fetch-metadata` → `compute-compatibility` → `build` → `cp dist/index.html dist/404.html` (GitHub Pages serves `404.html` for unknown paths, so deep links load the app) → upload `./dist` as a Pages artifact → `actions/deploy-pages`. Uses Node from `.nvmrc`.
 - `.env` is NOT required for local data generation — `fetch-metadata.ts` reads no token. `.env.example` still exists and lists `GITHUB_TOKEN` as required, which is stale; keep secrets out of git regardless (`.env` is gitignored).
 - **Dependency updates are Renovate-managed** (`renovate.json`) — most of the commit history is automated `chore(deps)` bumps rather than manual upgrades.
 
