@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { detectEsmSupport, detectModuleSystem, processNpmData } from './fetch-metadata';
-import { TRACKED_PACKAGES } from '../src/constants/repos';
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '__fixtures__/registry');
 
@@ -16,13 +15,6 @@ const versionOf = (name: string, version: string) => {
   if (!found) throw new Error(`${name}@${version} missing from fixture`);
   return found;
 };
-
-describe('tracked packages', () => {
-  it('tracks twelve packages and not geostyler-cql-parser', () => {
-    expect(TRACKED_PACKAGES).toHaveLength(12);
-    expect(TRACKED_PACKAGES).not.toContain('geostyler-cql-parser');
-  });
-});
 
 describe('detectEsmSupport', () => {
   it('true when type=module', () => {

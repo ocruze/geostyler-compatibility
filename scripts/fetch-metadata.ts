@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { REPOS, REPO_TO_NPM, TRACKED_PACKAGES, CORE_PACKAGES } from '../src/constants/repos.js';
+import { REPOS, REPO_TO_NPM, NPM_TO_REPO, TRACKED_PACKAGES, CORE_PACKAGES } from '../src/constants/repos.js';
 import type {
   Dataset,
   Package,
@@ -27,10 +27,6 @@ const __dirname = path.dirname(__filename);
 
 const OUTPUT_DIR = path.join(__dirname, '../src/data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'packages.json');
-
-const NPM_TO_REPO: Record<string, string> = Object.fromEntries(
-  Object.entries(REPO_TO_NPM).map(([repo, npmName]) => [npmName, repo]),
-);
 
 // Rate limiting
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -134,9 +130,6 @@ export function detectModuleSystem(versionData: Record<string, unknown>): Module
   return detectEsmSupport(versionData) ? 'esm' : 'cjs';
 }
 
-/**
- * Keep only dependencies on tracked packages.
- */
 function extractDeclaredDependencies(dependencies: Record<string, string> = {}): Record<string, string> {
   return Object.fromEntries(
     Object.entries(dependencies).filter(([name]) => TRACKED_PACKAGES.includes(name)),
@@ -197,18 +190,19 @@ export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: stri
     // Skip invalid versions
     if (!semver.valid(versionTag)) continue;
 
+    const coreRanges = extractCoreRanges(versionData);
+    const styleRange = coreRanges['geostyler-style'];
+
     const packageVersion: PackageVersion = {
       name: npmPackageName,
       version: versionTag,
       category,
       dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
-      coreRanges: extractCoreRanges(versionData),
+      coreRanges,
       declaredDependencies: extractDeclaredDependencies(versionData.dependencies),
       moduleSystem: detectModuleSystem(versionData),
-      geostylerStyleRange:
-        versionData.dependencies?.['geostyler-style'] ||
-        versionData.peerDependencies?.['geostyler-style'],
+      geostylerStyleRange: styleRange.source === 'declared' ? styleRange.range : undefined,
       esmSupport: detectEsmSupport(versionData),
       publishDate: npmData.time?.[versionTag] ?? '',
       isPrerelease: semver.prerelease(versionTag) !== null,

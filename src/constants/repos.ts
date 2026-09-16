@@ -30,9 +30,10 @@ export const REPO_TO_NPM: Record<string, string> = Object.fromEntries(
   REPOS.map((repo) => [repo, repo.split('/')[1]]),
 );
 
-/**
- * npm names of the tracked packages.
- */
+export const NPM_TO_REPO: Record<string, string> = Object.fromEntries(
+  REPOS.map((repo) => [repo.split('/')[1], repo]),
+);
+
 export const TRACKED_PACKAGES: string[] = Object.values(REPO_TO_NPM);
 
 export const CORE_PACKAGES: CorePackage[] = ['geostyler-style', 'geostyler-data'];
