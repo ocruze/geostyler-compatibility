@@ -153,10 +153,10 @@ describe('buildVersionSet', () => {
         'geostyler/geostyler-sld-parser:risk',
         'geostyler-sld-parser/geostyler-mapbox-parser:risk',
       ]);
-      expect(result.relax).toBe('geostyler-sld-parser');
+      expect(result.pinToRelax).toEqual({ name: 'geostyler-sld-parser', count: 2 });
     });
 
-    it('offers the best partial set with the offending package removed', () => {
+    it('offers a partial set without the pin to relax', () => {
       const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser'], {
         pins: { 'geostyler-sld-parser': '9.0.3' },
       });
@@ -168,11 +168,21 @@ describe('buildVersionSet', () => {
       ]);
     });
 
-    it('ignores a pin on a version the dataset does not have', () => {
+    it('leaves out and reports a pin on a version the dataset does not have', () => {
       const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-geojson-parser'], {
         pins: { 'geostyler-sld-parser': '0.0.1' },
       });
       expect(chosen(result)['geostyler-sld-parser']).toBe('9.0.3');
+      expect(result.ignoredPins).toEqual(['geostyler-sld-parser']);
+    });
+
+    it('removes the pin to relax before any other package in the partial set', () => {
+      const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-geojson-parser'], {
+        pins: { 'geostyler-sld-parser': '9.0.3' },
+      });
+      if (result.status !== 'none') throw new Error('expected no set');
+      expect(result.pinToRelax?.name).toBe('geostyler-sld-parser');
+      expect(result.partial?.removed).toBe('geostyler-sld-parser');
     });
   });
 
@@ -182,7 +192,7 @@ describe('buildVersionSet', () => {
     if (result.status !== 'none') throw new Error('expected no set');
     expect(result.failing).toHaveLength(1);
     expect(result.failing[0].verdict).toBe('risk');
-    expect(result.relax).toBeNull();
+    expect(result.pinToRelax).toBeNull();
     // Without sld, openlayers 4.1.2 still fits no anchor in this fixture; without openlayers, sld does.
     expect(result.partial?.removed).toBe('geostyler-openlayers-parser');
   });

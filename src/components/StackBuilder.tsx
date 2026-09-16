@@ -1,6 +1,6 @@
 import { Checkbox, Flex, Select, Typography } from 'antd';
 
-import { candidateVersions } from '@/engine';
+import { candidateVersions, type Pins } from '@/engine';
 import { usePrereleases } from '@/hooks/usePrereleases';
 import type { Package, PackageCategory } from '@/types/compatibility';
 
@@ -17,8 +17,6 @@ const GROUPS: { category: PackageCategory; label: string }[] = [
   { category: 'core', label: 'Core packages' },
 ];
 
-export type Pins = Record<string, string>;
-
 interface StackBuilderProps {
   packages: Package[];
   stack: string[];
@@ -28,6 +26,8 @@ interface StackBuilderProps {
 
 const RECOMMENDED = '';
 
+const without = (pins: Pins, name: string): Pins => Object.fromEntries(Object.entries(pins).filter(([n]) => n !== name));
+
 export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderProps) {
   const [includePrereleases] = usePrereleases();
 
@@ -35,16 +35,12 @@ export function StackBuilder({ packages, stack, pins, onChange }: StackBuilderPr
     const next = new Set(stack);
     if (checked) next.add(name);
     else next.delete(name);
-    const { [name]: dropped, ...rest } = pins;
-    void dropped;
     // Stored in tracked order so the same stack always gives the same URL.
-    onChange(packages.map((p) => p.name).filter((n) => next.has(n)), checked ? pins : rest);
+    onChange(packages.map((p) => p.name).filter((n) => next.has(n)), checked ? pins : without(pins, name));
   };
 
   const pin = (name: string, version: string) => {
-    const { [name]: dropped, ...rest } = pins;
-    void dropped;
-    onChange(stack, version === RECOMMENDED ? rest : { ...rest, [name]: version });
+    onChange(stack, version === RECOMMENDED ? without(pins, name) : { ...pins, [name]: version });
   };
 
   const versionOptions = (pkg: Package) => {

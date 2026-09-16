@@ -46,7 +46,13 @@ The set of tracked packages a user says they use. The landing page's input.
 _Avoid_: selection, selected packages
 
 **Pin**:
-A version the user fixes for one package in their stack. The recommendation must keep it.
+A version the user fixes for one package in their stack. The recommendation must keep it. A pin on a version the dataset does not have is left out and reported.
+
+**Failing pair**:
+A pair in the closest rejected attempt whose verdict is Conflict, Risk, Duplicate or Unknown. Shown when no version set exists, with the pin to relax: the pinned package in the most failing pairs.
+
+**Partial set**:
+A version set for the stack minus one package, offered when no set exists. The pin to relax is removed first, then each stack package in order; the first removal that leaves a set wins.
 
 **Version set**:
 One version per package in the stack. The landing page's output when every pair in it is Compatible, Shipped together or Independent.

@@ -3,22 +3,23 @@ import { Card } from 'antd';
 import { useEffect, useMemo } from 'react';
 
 import { usePackages } from '@/api/queries';
-import { StackBuilder, type Pins } from '@/components/StackBuilder';
+import { StackBuilder } from '@/components/StackBuilder';
+import type { Pins } from '@/engine';
 
 // The stack and its pins live in the URL: back undoes the last change and links share the same answer.
 type StackSearch = { stack?: string; pin?: string };
 
-const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
+const nonEmptyString = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
 
 export const Route = createFileRoute('/')({
   component: StackBuilderPage,
   validateSearch: (search: Record<string, unknown>): StackSearch => ({
-    stack: text(search.stack),
-    pin: text(search.pin),
+    stack: nonEmptyString(search.stack),
+    pin: nonEmptyString(search.pin),
   }),
 });
 
-// `name@version` entries; a pin outside the stack or on an unknown version is dropped.
+// `name@version` entries; a pin outside the stack is dropped, the engine reports one on an unknown version.
 function parsePins(param: string | undefined, stack: string[]): Pins {
   const pins: Pins = {};
   for (const entry of param ? param.split(',') : []) {
@@ -40,13 +41,7 @@ function StackBuilderPage() {
     return (stackParam ? stackParam.split(',') : []).filter((name) => tracked.has(name));
   }, [packages, stackParam]);
 
-  const pins = useMemo(() => {
-    const parsed = parsePins(pinParam, stack);
-    for (const [name, version] of Object.entries(parsed)) {
-      if (!packages.find((p) => p.name === name)?.versions.some((v) => v.version === version)) delete parsed[name];
-    }
-    return parsed;
-  }, [packages, pinParam, stack]);
+  const pins = useMemo(() => parsePins(pinParam, stack), [pinParam, stack]);
 
   useEffect(() => {
     document.title = 'Check compatibility · GeoStyler Compatibility';
