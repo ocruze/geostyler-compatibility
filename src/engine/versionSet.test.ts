@@ -126,4 +126,64 @@ describe('buildVersionSet', () => {
     expect(found(result).versions.map((v) => v.version)).toEqual(['8.2.0', '4.1.0']);
     expect(found(result).newest.map((v) => v.version)).toEqual(['9.0.3', '4.1.0']);
   });
+
+  describe('pins', () => {
+    it('keeps a pinned version instead of following the declared range', () => {
+      const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser'], {
+        pins: { 'geostyler-sld-parser': '8.4.2' },
+      });
+      expect(chosen(result)).toEqual({ geostyler: '18.6.0', 'geostyler-sld-parser': '8.4.2' });
+      expect(found(result).newest.map((v) => v.version)).toEqual(['18.6.0', '9.0.3']);
+    });
+
+    it('turns a pinned core package into the anchor', () => {
+      const result = buildVersionSet(packages, ['geostyler-style', 'geostyler-sld-parser'], {
+        pins: { 'geostyler-style': '11.1.0' },
+      });
+      expect(chosen(result)).toEqual({ 'geostyler-style': '11.1.0', 'geostyler-sld-parser': '8.4.2' });
+      expect(found(result).anchors['geostyler-style']?.version).toBe('11.1.0');
+    });
+
+    it('reports the failing pairs and the pin to relax when pins contradict', () => {
+      const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser'], {
+        pins: { 'geostyler-sld-parser': '9.0.3', 'geostyler-mapbox-parser': '6.2.0' },
+      });
+      if (result.status !== 'none') throw new Error('expected no set');
+      expect(result.failing.map((p) => `${p.a.name}/${p.b.name}:${p.verdict}`)).toEqual([
+        'geostyler/geostyler-sld-parser:risk',
+        'geostyler-sld-parser/geostyler-mapbox-parser:risk',
+      ]);
+      expect(result.relax).toBe('geostyler-sld-parser');
+    });
+
+    it('offers the best partial set with the offending package removed', () => {
+      const result = buildVersionSet(packages, ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser'], {
+        pins: { 'geostyler-sld-parser': '9.0.3' },
+      });
+      if (result.status !== 'none') throw new Error('expected no set');
+      expect(result.partial?.removed).toBe('geostyler-sld-parser');
+      expect(result.partial?.set.versions.map((v) => `${v.name}@${v.version}`)).toEqual([
+        'geostyler@18.6.0',
+        'geostyler-mapbox-parser@6.2.0',
+      ]);
+    });
+
+    it('ignores a pin on a version the dataset does not have', () => {
+      const result = buildVersionSet(packages, ['geostyler-sld-parser', 'geostyler-geojson-parser'], {
+        pins: { 'geostyler-sld-parser': '0.0.1' },
+      });
+      expect(chosen(result)['geostyler-sld-parser']).toBe('9.0.3');
+    });
+  });
+
+  it('reports the closest attempt when no anchor accepts every package', () => {
+    const onlyOld = fxPackage('geostyler-openlayers-parser', '4.1.2');
+    const result = buildVersionSet([style, data, sld, onlyOld], ['geostyler-sld-parser', 'geostyler-openlayers-parser']);
+    if (result.status !== 'none') throw new Error('expected no set');
+    expect(result.failing).toHaveLength(1);
+    expect(result.failing[0].verdict).toBe('risk');
+    expect(result.relax).toBeNull();
+    // Without sld, openlayers 4.1.2 still fits no anchor in this fixture; without openlayers, sld does.
+    expect(result.partial?.removed).toBe('geostyler-openlayers-parser');
+  });
 });
