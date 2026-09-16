@@ -87,7 +87,14 @@ export function LatestReleasesGrid({ packages }: { packages: Package[] }) {
         width={720}
         title={selected ? `${versionLabel(selected.a)} and ${versionLabel(selected.b)}` : ''}
       >
-        {selected && <VerdictDetail evaluation={selected} />}
+        {selected && (
+          <Flex vertical gap="middle">
+            <VerdictDetail evaluation={selected} />
+            <Link to="/package/$name" params={{ name: selected.a.name }} search={{ compare: selected.b.name }}>
+              Open this pair on the {selected.a.name} page
+            </Link>
+          </Flex>
+        )}
       </Modal>
     </Flex>
   );

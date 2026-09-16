@@ -48,7 +48,8 @@ export function VerdictCell({ evaluation, onOpen }: VerdictCellProps) {
   );
 }
 
-function rangeText(r: CoreRange) {
+// A core range with its source: declared, transitive with its origin, or none.
+export function CoreRangeText({ range: r }: { range: CoreRange }) {
   if (r.source === 'none') return <Text type="secondary">none</Text>;
   if (r.source === 'declared') return <code>{r.range}</code>;
   return (
@@ -72,8 +73,8 @@ export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
 
   const coreColumns: ColumnsType<CoreAxis> = [
     { title: 'Core package', dataIndex: 'core', render: (c: string) => <code>{c}</code> },
-    { title: versionLabel(a), key: 'a', render: (_, axis) => (a.name === axis.core ? <code>{a.version}</code> : rangeText(axis.a)) },
-    { title: versionLabel(b), key: 'b', render: (_, axis) => (b.name === axis.core ? <code>{b.version}</code> : rangeText(axis.b)) },
+    { title: versionLabel(a), key: 'a', render: (_, axis) => (a.name === axis.core ? <code>{a.version}</code> : <CoreRangeText range={axis.a} />) },
+    { title: versionLabel(b), key: 'b', render: (_, axis) => (b.name === axis.core ? <code>{b.version}</code> : <CoreRangeText range={axis.b} />) },
     {
       title: 'Outcome',
       key: 'outcome',
