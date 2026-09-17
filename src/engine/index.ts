@@ -8,3 +8,5 @@ export type { Anchors, Bottleneck, NoSet, PartialSet, Pins, PinToRelax, StackPai
 export { candidateVersions } from './versions';
 export { buildPairMatrix, PAIR_MATRIX_DEFAULT_LIMIT } from './pairMatrix';
 export type { PairMatrix, PairMatrixOptions } from './pairMatrix';
+export { findTransitiveRangeExample, findVerdictExamples } from './examples';
+export type { TransitiveRangeExample, VerdictExamples } from './examples';
