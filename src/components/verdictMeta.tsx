@@ -23,10 +23,6 @@ interface VerdictMeta {
   icon: ReactNode;
 }
 
-export const VERDICTS: Verdict[] = [
-  'conflict', 'risk', 'duplicate', 'shipped-together', 'compatible', 'independent', 'unknown',
-];
-
 export const VERDICT_META: Record<Verdict, VerdictMeta> = {
   conflict: {
     label: 'Conflict',

@@ -3,17 +3,13 @@ import type { CorePackage, CoreRange, Package, PackageVersion, Verdict } from '@
 
 import { evaluatePair, type PairEvaluation } from './evaluatePair';
 import { buildLatestReleasesGrid } from './latestReleasesGrid';
+import { VERDICTS } from './verdicts';
 import { candidateVersions } from './versions';
-
-const VERDICTS: Verdict[] = ['conflict', 'risk', 'duplicate', 'shipped-together', 'compatible', 'independent', 'unknown'];
 
 // One real pair per verdict; null when no pair of tracked versions has it.
 export type VerdictExamples = Record<Verdict, PairEvaluation | null>;
 
-/**
- * Finds one pair of versions for each verdict, so documentation can show real examples.
- * Latest releases are preferred; older versions are then searched newest-first, stopping once every verdict has one.
- */
+// One real pair per verdict: latest releases first, then older versions newest-first until every verdict has one.
 export function findVerdictExamples(packages: Package[], includePrereleases = false): VerdictExamples {
   const examples = Object.fromEntries(VERDICTS.map((v) => [v, null])) as VerdictExamples;
   const complete = () => VERDICTS.every((v) => examples[v] !== null);

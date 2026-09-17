@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
 import { findTransitiveRangeExample, findVerdictExamples } from '@/engine/examples';
-import type { PackageVersion, Verdict } from '@/types/compatibility';
+import { VERDICTS } from '@/engine/verdicts';
+import type { PackageVersion } from '@/types/compatibility';
 
 import { fx, fxPackage } from './__fixtures__/versions';
 
 const label = (v: PackageVersion) => `${v.name}@${v.version}`;
 const pair = (e: { a: PackageVersion; b: PackageVersion } | null) => (e ? [label(e.a), label(e.b)].sort() : null);
-
-const VERDICTS: Verdict[] = ['conflict', 'risk', 'duplicate', 'shipped-together', 'compatible', 'independent', 'unknown'];
 
 describe('findVerdictExamples', () => {
   it('takes each example from the latest releases when a latest pair has the verdict', () => {

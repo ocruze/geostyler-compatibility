@@ -314,7 +314,7 @@
 }
 
 /* The sentence the app shows for the example pair. */
-.docs-verdict__example {
+.docs-example {
   margin: 0;
   padding: 4px 12px;
   border-left: 3px solid rgba(0, 0, 0, 0.15);

@@ -3,6 +3,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { ReactNode } from 'react';
 
 import {
+  VERDICTS,
   verdictSentence,
   versionLabel,
   type CoreAxis,
@@ -13,7 +14,7 @@ import {
 import type { CoreRange, PackageVersion, Verdict } from '@/types/compatibility';
 import { formatRangeForDisplay } from '@/utils/semver';
 
-import { TAG_COLOR, VERDICT_META, VERDICTS, useStatusColors } from './verdictMeta';
+import { TAG_COLOR, VERDICT_META, useStatusColors } from './verdictMeta';
 
 const { Text } = Typography;
 

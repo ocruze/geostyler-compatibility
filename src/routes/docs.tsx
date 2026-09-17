@@ -11,11 +11,12 @@ import {
   VerdictDetail,
   VerdictTag,
 } from '@/components/Verdict';
-import { COLOR_NAME, VERDICT_META, VERDICTS } from '@/components/verdictMeta';
+import { COLOR_NAME, VERDICT_META } from '@/components/verdictMeta';
 import { VersionSetView } from '@/components/VersionSetView';
 import { CATEGORY_LABEL, MODULE_LABEL } from '@/constants/labels';
 import {
   PAIR_MATRIX_DEFAULT_LIMIT,
+  VERDICTS,
   buildVersionSet,
   findTransitiveRangeExample,
   findVerdictExamples,
@@ -43,7 +44,7 @@ const CATEGORY_DESCRIPTION: Record<PackageCategory, string> = {
   'data-parser': 'Converts between geostyler-data and one data format.',
 };
 
-// The stack from the redesign brief; the engine names its bottleneck at render time.
+// A UI package, the legend and four style parsers: a stack whose set trails the newest releases, so it has a bottleneck.
 const EXAMPLE_STACK = [
   'geostyler',
   'geostyler-legend',
@@ -96,11 +97,35 @@ function NoExample({ what }: { what: string }) {
   return <Text type="secondary">No {what} in the current dataset.</Text>;
 }
 
-function ExampleCaption({ a, b }: { a: PackageVersion; b: PackageVersion }) {
+interface AxisExampleProps<T> {
+  example: { evaluation: PairEvaluation; rows: T[] } | null;
+  // What the dataset lacks when there is no example.
+  missing: string;
+  table: (a: PackageVersion, b: PackageVersion, rows: T[]) => ReactNode;
+}
+
+function AxisExample<T>({ example, missing, table }: AxisExampleProps<T>) {
+  if (!example) return <NoExample what={missing} />;
+  const { a, b } = example.evaluation;
   return (
-    <Text type="secondary">
-      Example: {versionLabel(a)} and {versionLabel(b)}
-    </Text>
+    <>
+      <Text type="secondary">
+        Example: {versionLabel(a)} and {versionLabel(b)}
+      </Text>
+      {table(a, b, example.rows)}
+    </>
+  );
+}
+
+// The sentence the app shows for one pair.
+function ExampleSentence({ a, b, children }: { a: PackageVersion; b: PackageVersion; children: ReactNode }) {
+  return (
+    <blockquote className="docs-example">
+      <Text type="secondary">
+        {versionLabel(a)} and {versionLabel(b)}:
+      </Text>{' '}
+      {children}
+    </blockquote>
   );
 }
 
@@ -111,8 +136,8 @@ function PagesSection() {
       <Paragraph>
         The <Link to="/">stack builder</Link> is the landing page. Tick the packages you use. Each ticked package gets a
         version control set to Recommended; choose a version there to pin it. The result is a version set: one version
-        per package, an <code>npm install</code> line to copy, and, when the set is older than the newest releases, a
-        sentence naming the bottleneck. With nothing ticked, the page shows the latest releases grid: the latest release
+        per package and an <code>npm install</code> line to copy. When the set is older than the newest releases, a
+        sentence names the bottleneck. With nothing ticked, the page shows the latest releases grid: the latest release
         of every tracked package against every other, one verdict per cell.
       </Paragraph>
       <Paragraph>
@@ -121,15 +146,15 @@ function PagesSection() {
       </Paragraph>
       <Title level={4}>Package page</Title>
       <Paragraph>
-        One tracked package: its category, format and module system, the version history with each core range and where
-        it came from, and the pair matrix against a package you choose. The matrix shows the newest{' '}
+        One tracked package: its category, format and module system, and the version history with each core range and
+        its source. Below them, the pair matrix against a package you choose. The matrix shows the newest{' '}
         {PAIR_MATRIX_DEFAULT_LIMIT} stable versions on each side until you expand it to all. Select a cell to see how its
         verdict was reached. Add to stack returns to the stack builder with the package added.
       </Paragraph>
       <Title level={4}>Prereleases</Title>
       <Paragraph>
-        Versions with a <code>-next</code>, <code>-beta</code> or similar tag are hidden everywhere by default and never
-        recommended while a stable release exists. The Show prereleases switch in the header reveals them in grids,
+        Every page hides versions with a <code>-next</code>, <code>-beta</code> or similar tag by default. The stack
+        builder never recommends one while a stable release exists. The Show prereleases switch in the header reveals them in grids,
         matrices and version controls. It is a browser preference, not part of the URL.
       </Paragraph>
     </Section>
@@ -196,8 +221,8 @@ function AxesSection({ examples, packages, includePrereleases }: { examples: Ver
   return (
     <Section id="axes" title="The three axes">
       <Paragraph>
-        A pair of package versions is compared on three axes. Each axis has an outcome; the verdict is the strongest
-        outcome across them.
+        The engine compares a pair of package versions on three axes. Each axis has an outcome; the verdict is the
+        strongest outcome across them.
       </Paragraph>
 
       <Title level={4}>1. Core range</Title>
@@ -208,33 +233,20 @@ function AxesSection({ examples, packages, includePrereleases }: { examples: Ver
         style or data objects may not match between them. When one member of the pair is the core package itself, its
         version must satisfy the other's range.
       </Paragraph>
-      {coreIntersect ? (
-        <>
-          <ExampleCaption a={coreIntersect.evaluation.a} b={coreIntersect.evaluation.b} />
-          <CoreAxisTable a={coreIntersect.evaluation.a} b={coreIntersect.evaluation.b} rows={coreIntersect.rows} />
-        </>
-      ) : (
-        <NoExample what="pair has intersecting core ranges" />
-      )}
-      {coreDisjoint ? (
-        <>
-          <ExampleCaption a={coreDisjoint.evaluation.a} b={coreDisjoint.evaluation.b} />
-          <CoreAxisTable a={coreDisjoint.evaluation.a} b={coreDisjoint.evaluation.b} rows={coreDisjoint.rows} />
-        </>
-      ) : (
-        <NoExample what="pair has disjoint core ranges" />
-      )}
+      <AxisExample example={coreIntersect} missing="pair has intersecting core ranges" table={(a, b, rows) => <CoreAxisTable a={a} b={b} rows={rows} />} />
+      <AxisExample example={coreDisjoint} missing="pair has disjoint core ranges" table={(a, b, rows) => <CoreAxisTable a={a} b={b} rows={rows} />} />
       <Paragraph>
         A version that declares no core range can inherit one through a declared dependency on a tracked package. The
-        build step resolves this once, taking the newest version that satisfies the declared range, and records where
-        the range came from. The version history on each package page shows that origin.
+        build step follows declared dependencies, taking the newest version satisfying each range, until it reaches a
+        declared core range. It records where that range came from, and the version history on each package page shows
+        the origin.
       </Paragraph>
       {transitive ? (
         <Flex vertical>
           <Text type="secondary">Example: {versionLabel(transitive.version)}</Text>
           <Text>
             Its <code>{transitive.core}</code> range <code>{transitive.range.range}</code> comes from{' '}
-            {transitive.range.origin.name} {transitive.range.origin.version}, the newest version satisfying the dependency it declares.
+            {transitive.range.origin.name} {transitive.range.origin.version}, reached through its declared dependencies.
           </Text>
         </Flex>
       ) : (
@@ -247,22 +259,8 @@ function AxesSection({ examples, packages, includePrereleases }: { examples: Ver
         satisfies that range, upstream built and tested the pair, whatever their core ranges say. When it does not, npm
         installs the parser twice: your version and the one the UI package bundles.
       </Paragraph>
-      {declaredSatisfied ? (
-        <>
-          <ExampleCaption a={declaredSatisfied.evaluation.a} b={declaredSatisfied.evaluation.b} />
-          <DeclaredDependencyTable rows={declaredSatisfied.rows} />
-        </>
-      ) : (
-        <NoExample what="pair has a satisfied declared dependency" />
-      )}
-      {declaredUnsatisfied ? (
-        <>
-          <ExampleCaption a={declaredUnsatisfied.evaluation.a} b={declaredUnsatisfied.evaluation.b} />
-          <DeclaredDependencyTable rows={declaredUnsatisfied.rows} />
-        </>
-      ) : (
-        <NoExample what="pair has an unsatisfied declared dependency" />
-      )}
+      <AxisExample example={declaredSatisfied} missing="pair has a satisfied declared dependency" table={(_a, _b, rows) => <DeclaredDependencyTable rows={rows} />} />
+      <AxisExample example={declaredUnsatisfied} missing="pair has an unsatisfied declared dependency" table={(_a, _b, rows) => <DeclaredDependencyTable rows={rows} />} />
 
       <Title level={4}>3. Shared peer</Title>
       <Paragraph>
@@ -270,22 +268,8 @@ function AxesSection({ examples, packages, includePrereleases }: { examples: Ver
         <code>react</code>. A project holds one copy of a peer, so disjoint ranges make <code>npm install</code> fail.
         This is the only axis that can break installation.
       </Paragraph>
-      {peerIntersect ? (
-        <>
-          <ExampleCaption a={peerIntersect.evaluation.a} b={peerIntersect.evaluation.b} />
-          <SharedPeerTable a={peerIntersect.evaluation.a} b={peerIntersect.evaluation.b} rows={peerIntersect.rows} />
-        </>
-      ) : (
-        <NoExample what="pair shares a peer with intersecting ranges" />
-      )}
-      {peerDisjoint ? (
-        <>
-          <ExampleCaption a={peerDisjoint.evaluation.a} b={peerDisjoint.evaluation.b} />
-          <SharedPeerTable a={peerDisjoint.evaluation.a} b={peerDisjoint.evaluation.b} rows={peerDisjoint.rows} />
-        </>
-      ) : (
-        <NoExample what="pair shares a peer with disjoint ranges" />
-      )}
+      <AxisExample example={peerIntersect} missing="pair shares a peer with intersecting ranges" table={(a, b, rows) => <SharedPeerTable a={a} b={b} rows={rows} />} />
+      <AxisExample example={peerDisjoint} missing="pair shares a peer with disjoint ranges" table={(a, b, rows) => <SharedPeerTable a={a} b={b} rows={rows} />} />
     </Section>
   );
 }
@@ -301,12 +285,9 @@ function VerdictEntry({ verdict, example }: { verdict: Verdict; example: PairEva
       <Paragraph className="docs-verdict__definition">{meta.definition}</Paragraph>
       {example ? (
         <Flex vertical gap="small">
-          <blockquote className="docs-verdict__example">
-            <Text type="secondary">
-              {versionLabel(example.a)} and {versionLabel(example.b)}:
-            </Text>{' '}
+          <ExampleSentence a={example.a} b={example.b}>
             {verdictSentence(example)}
-          </blockquote>
+          </ExampleSentence>
           <Collapse
             size="small"
             items={[{ key: 'detail', label: 'How this verdict was reached', children: <VerdictDetail evaluation={example} /> }]}
@@ -323,10 +304,11 @@ function VerdictsSection({ examples }: { examples: VerdictExamples }) {
   return (
     <Section id="verdicts" title="The seven verdicts">
       <Paragraph>
-        Every pair gets exactly one verdict. The list runs from strongest to weakest: the first rule that applies wins.
-        The colour and icon are the same in the latest releases grid, the version set, the pair matrix and the detail
-        view. Independent and Unknown are grey on purpose: nothing was checked, or data was missing, and neither is a
-        pass. Each example below is a real pair from the current dataset, with the sentence the app shows for it.
+        Every pair gets exactly one verdict. Conflict wins over every other outcome; Independent applies only when no
+        other rule does. The colour and icon are the same in the latest releases grid, the version set, the pair matrix
+        and the cell detail. Independent and Unknown are grey on purpose: nothing was checked, or data was missing, and
+        neither is a pass. Each example below is a real pair from the current dataset, with the sentence the app shows
+        for it.
       </Paragraph>
       <ul className="docs-verdicts">
         {VERDICTS.map((verdict) => (
@@ -338,12 +320,13 @@ function VerdictsSection({ examples }: { examples: VerdictExamples }) {
 }
 
 function VersionSetsSection({ packages, includePrereleases }: { packages: Package[]; includePrereleases: boolean }) {
-  const isTracked = (name: string) => packages.some((p) => p.name === name);
-  const exampleStack = EXAMPLE_STACK.filter(isTracked);
-  const viaPair = useMemo(() => {
-    const stack = VIA_STACK.filter((name) => packages.some((p) => p.name === name));
-    const result = buildVersionSet(packages, stack, { includePrereleases });
-    return result.status === 'found' ? (result.set.pairs.find((pair) => pair.via) ?? null) : null;
+  const { exampleStack, viaPair } = useMemo(() => {
+    const isTracked = (name: string) => packages.some((p) => p.name === name);
+    const result = buildVersionSet(packages, VIA_STACK.filter(isTracked), { includePrereleases });
+    return {
+      exampleStack: EXAMPLE_STACK.filter(isTracked),
+      viaPair: result.status === 'found' ? (result.set.pairs.find((pair) => pair.via) ?? null) : null,
+    };
   }, [packages, includePrereleases]);
 
   return (
@@ -362,20 +345,17 @@ function VersionSetsSection({ packages, includePrereleases }: { packages: Packag
         the declaring version.
       </Paragraph>
       {viaPair ? (
-        <blockquote className="docs-verdict__example">
-          <Text type="secondary">
-            {versionLabel(viaPair.a)} and {versionLabel(viaPair.b)}:
-          </Text>{' '}
+        <ExampleSentence a={viaPair.a} b={viaPair.b}>
           {stackPairSentence(viaPair)}
-        </blockquote>
+        </ExampleSentence>
       ) : (
         <NoExample what="version set has a pair vouched for by a third package" />
       )}
       <Title level={4}>Pins</Title>
       <Paragraph>
         A pin fixes one package at a version you cannot change. The search keeps it and finds what fits around it. When
-        no set keeps every pin, the page lists the failing pairs with their verdicts and names the pin to relax: the
-        pinned package in the most failing pairs. A pin on a version the dataset does not have is left out and reported.
+        no set keeps every pin, the page lists the failing pairs with their verdicts. It also names the pin to relax:
+        the pinned package in the most failing pairs. A pin on a version the dataset does not have is left out and reported.
       </Paragraph>
       <Title level={4}>Partial set</Title>
       <Paragraph>
@@ -415,14 +395,14 @@ function DataSection({ packages, includePrereleases }: { packages: Package[]; in
     <Section id="data" title="Where the data comes from">
       <Paragraph>
         The build step reads the npm registry for the tracked packages and writes one data file. It reads nothing else:
-        no GitHub API, no changelogs. A GitHub Actions workflow runs it on every push to <code>main</code> and daily at
-        midnight UTC, then deploys the site to GitHub Pages. This copy was generated on{' '}
+        no GitHub API, no changelogs. A GitHub Actions workflow runs it on every push to <code>main</code>, daily at
+        midnight UTC and on demand, then deploys the site to GitHub Pages. This copy was generated on{' '}
         {generatedDate ? <time dateTime={datasetGeneratedAt}>{generatedDate}</time> : 'an unknown date'} (UTC).
       </Paragraph>
       <Paragraph>
-        For each version the file keeps the version number, publish date, prerelease flag, module system, core ranges
-        with their source, declared dependencies on tracked packages, and peer dependencies. The build step computes no
-        verdict. Your browser evaluates every pair and every version set from that file, so the build and the page
+        For each version the file keeps the version number, publish date, prerelease flag and module system. It also
+        keeps the core ranges with their source, the declared dependencies on tracked packages and the peer
+        dependencies. The build step computes no verdict. Your browser evaluates every pair and every version set from that file, so the build and the page
         cannot disagree on what compatible means.
       </Paragraph>
       <Title level={4}>Module system</Title>
