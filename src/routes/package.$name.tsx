@@ -7,24 +7,16 @@ import { useEffect, useMemo } from 'react';
 import { usePackages } from '@/api/queries';
 import { PairMatrix } from '@/components/PairMatrix';
 import { CoreRangeText } from '@/components/Verdict';
+import { CATEGORY_LABEL, MODULE_LABEL } from '@/constants/labels';
 import { CORE_PACKAGES } from '@/constants/repos';
 import { candidateVersions } from '@/engine';
 import { EXPECTED_CORES } from '@/engine/evaluatePair';
 import { usePrereleases } from '@/hooks/usePrereleases';
-import type { ModuleSystem, Package, PackageCategory, PackageVersion } from '@/types/compatibility';
+import type { Package, PackageVersion } from '@/types/compatibility';
 import { formatUtcDate } from '@/utils/date';
 import { encodeStackSearch, parseStackSelection, validateStackSearch, type StackSearch } from '@/utils/stackSearch';
 
 const { Text, Title } = Typography;
-
-const CATEGORY_LABEL: Record<PackageCategory, string> = {
-  core: 'Core package',
-  ui: 'UI package',
-  'style-parser': 'Style parser',
-  'data-parser': 'Data parser',
-};
-
-const MODULE_LABEL: Record<ModuleSystem, string> = { esm: 'ESM', cjs: 'CJS', 'types-only': 'Types only' };
 
 // The stack travels with the page so "Add to stack" returns to the same stack builder state; `with` names the pair matrix partner.
 type PackageSearch = StackSearch & { with?: string };

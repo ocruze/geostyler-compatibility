@@ -1,422 +1,458 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useEffect } from 'react';
-import { Card, Collapse, Flex, Table, Alert, Badge, Divider, Typography } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { Card, Collapse, Flex, Table, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { useEffect, useMemo, type ReactNode } from 'react';
+
+import { datasetGeneratedAt, usePackages } from '@/api/queries';
+import {
+  CoreAxisTable,
+  DeclaredDependencyTable,
+  SharedPeerTable,
+  VerdictDetail,
+  VerdictTag,
+} from '@/components/Verdict';
+import { COLOR_NAME, VERDICT_META } from '@/components/verdictMeta';
+import { VersionSetView } from '@/components/VersionSetView';
+import { CATEGORY_LABEL, MODULE_LABEL } from '@/constants/labels';
+import {
+  PAIR_MATRIX_DEFAULT_LIMIT,
+  VERDICTS,
+  buildVersionSet,
+  findTransitiveRangeExample,
+  findVerdictExamples,
+  latestVersion,
+  stackPairSentence,
+  verdictSentence,
+  versionLabel,
+  type PairEvaluation,
+  type VerdictExamples,
+} from '@/engine';
+import { usePrereleases } from '@/hooks/usePrereleases';
+import type { Package, PackageCategory, PackageVersion, Verdict } from '@/types/compatibility';
+import { formatUtcDate } from '@/utils/date';
+
+const { Paragraph, Text, Title } = Typography;
 
 export const Route = createFileRoute('/docs')({
   component: Docs,
 });
 
+const CATEGORY_DESCRIPTION: Record<PackageCategory, string> = {
+  core: 'Defines a schema other packages consume: geostyler-style for styles, geostyler-data for features.',
+  ui: 'A React library that consumes styles and data and declares parsers as dependencies.',
+  'style-parser': 'Converts between geostyler-style and one style format.',
+  'data-parser': 'Converts between geostyler-data and one data format.',
+};
+
+// A UI package, the legend and four style parsers: a stack whose set trails the newest releases, so it has a bottleneck.
+const EXAMPLE_STACK = [
+  'geostyler',
+  'geostyler-legend',
+  'geostyler-sld-parser',
+  'geostyler-mapbox-parser',
+  'geostyler-qgis-parser',
+  'geostyler-openlayers-parser',
+];
+
+// A UI package with two parsers it declares: the stack where a third version can vouch for a Risk pair.
+const VIA_STACK = ['geostyler', 'geostyler-sld-parser', 'geostyler-mapbox-parser'];
+
+const SECTIONS = [
+  { id: 'pages', title: 'The pages' },
+  { id: 'packages', title: 'Tracked packages' },
+  { id: 'axes', title: 'The three axes' },
+  { id: 'verdicts', title: 'The seven verdicts' },
+  { id: 'version-sets', title: 'Version sets' },
+  { id: 'data', title: 'Where the data comes from' },
+];
+
+// Examples are searched in this order so an axis example comes from the pair most likely to show it clearly.
+const AXIS_EXAMPLE_ORDER: Verdict[] = ['compatible', 'shipped-together', 'risk', 'duplicate', 'conflict', 'unknown', 'independent'];
+
+function axisExample<T>(
+  examples: VerdictExamples,
+  pick: (evaluation: PairEvaluation) => T[],
+  matches: (row: T) => boolean,
+): { evaluation: PairEvaluation; rows: T[] } | null {
+  for (const verdict of AXIS_EXAMPLE_ORDER) {
+    const evaluation = examples[verdict];
+    if (!evaluation) continue;
+    const rows = pick(evaluation).filter(matches);
+    if (rows.length > 0) return { evaluation, rows };
+  }
+  return null;
+}
+
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <Card id={id} title={<Title level={3} className="docs-section__title">{title}</Title>}>
+      <Flex vertical gap="middle">
+        {children}
+      </Flex>
+    </Card>
+  );
+}
+
+function NoExample({ what }: { what: string }) {
+  return <Text type="secondary">No {what} in the current dataset.</Text>;
+}
+
+interface AxisExampleProps<T> {
+  example: { evaluation: PairEvaluation; rows: T[] } | null;
+  // What the dataset lacks when there is no example.
+  missing: string;
+  table: (a: PackageVersion, b: PackageVersion, rows: T[]) => ReactNode;
+}
+
+function AxisExample<T>({ example, missing, table }: AxisExampleProps<T>) {
+  if (!example) return <NoExample what={missing} />;
+  const { a, b } = example.evaluation;
+  return (
+    <>
+      <Text type="secondary">
+        Example: {versionLabel(a)} and {versionLabel(b)}
+      </Text>
+      {table(a, b, example.rows)}
+    </>
+  );
+}
+
+// The sentence the app shows for one pair.
+function ExampleSentence({ a, b, children }: { a: PackageVersion; b: PackageVersion; children: ReactNode }) {
+  return (
+    <blockquote className="docs-example">
+      <Text type="secondary">
+        {versionLabel(a)} and {versionLabel(b)}:
+      </Text>{' '}
+      {children}
+    </blockquote>
+  );
+}
+
+function PagesSection() {
+  return (
+    <Section id="pages" title="The pages">
+      <Title level={4}>Check compatibility</Title>
+      <Paragraph>
+        The <Link to="/">stack builder</Link> is the landing page. Tick the packages you use. Each ticked package gets a
+        version control set to Recommended; choose a version there to pin it. The result is a version set: one version
+        per package and an <code>npm install</code> line to copy. When the set is older than the newest releases, a
+        sentence names the bottleneck. With nothing ticked, the page shows the latest releases grid: the latest release
+        of every tracked package against every other, one verdict per cell.
+      </Paragraph>
+      <Paragraph>
+        The stack and its pins live in the URL. A shared link shows the same answer, and the back button undoes the last
+        change.
+      </Paragraph>
+      <Title level={4}>Package page</Title>
+      <Paragraph>
+        One tracked package: its category, format and module system, and the version history with each core range and
+        its source. Below them, the pair matrix against a package you choose. The matrix shows the newest{' '}
+        {PAIR_MATRIX_DEFAULT_LIMIT} stable versions on each side until you expand it to all. Select a cell to see how its
+        verdict was reached. Add to stack returns to the stack builder with the package added.
+      </Paragraph>
+      <Title level={4}>Prereleases</Title>
+      <Paragraph>
+        Every page hides versions with a <code>-next</code>, <code>-beta</code> or similar tag by default. The stack
+        builder never recommends one while a stable release exists. The Show prereleases switch in the header reveals them in grids,
+        matrices and version controls. It is a browser preference, not part of the URL.
+      </Paragraph>
+    </Section>
+  );
+}
+
+interface PackageRow {
+  pkg: Package;
+  latest: PackageVersion | undefined;
+}
+
+function PackagesSection({ packages, includePrereleases }: { packages: Package[]; includePrereleases: boolean }) {
+  const rows: PackageRow[] = packages.map((pkg) => ({ pkg, latest: latestVersion(pkg, includePrereleases) }));
+  const columns: ColumnsType<PackageRow> = [
+    {
+      title: 'Package',
+      key: 'name',
+      render: (_, { pkg }) => (
+        <Link to="/package/$name" params={{ name: pkg.name }}>
+          {pkg.name}
+        </Link>
+      ),
+    },
+    { title: 'Category', key: 'category', render: (_, { pkg }) => CATEGORY_LABEL[pkg.category] },
+    { title: 'Format', key: 'format', render: (_, { pkg }) => pkg.format ?? <Text type="secondary">none</Text> },
+    { title: 'Latest release', key: 'latest', render: (_, { latest }) => (latest ? <code>{latest.version}</code> : <Text type="secondary">none</Text>) },
+    { title: 'Published', key: 'published', render: (_, { latest }) => (latest ? formatUtcDate(latest.publishDate) : null) },
+    { title: 'Module system', key: 'module', render: (_, { latest }) => (latest ? MODULE_LABEL[latest.moduleSystem] : null) },
+  ];
+  return (
+    <Section id="packages" title="Tracked packages">
+      <Paragraph>
+        The dataset covers a fixed list of packages in four categories. <code>geostyler-cql-parser</code> is not
+        tracked: users do not install it directly.
+      </Paragraph>
+      <ul className="docs-definitions">
+        {(Object.keys(CATEGORY_LABEL) as PackageCategory[]).map((category) => (
+          <li key={category}>
+            <Text strong>{CATEGORY_LABEL[category]}</Text> {CATEGORY_DESCRIPTION[category]}
+          </li>
+        ))}
+      </ul>
+      <Table<PackageRow>
+        size="small"
+        pagination={false}
+        rowKey={(row) => row.pkg.name}
+        columns={columns}
+        dataSource={rows}
+        scroll={{ x: 'max-content' }}
+      />
+    </Section>
+  );
+}
+
+function AxesSection({ examples, packages, includePrereleases }: { examples: VerdictExamples; packages: Package[]; includePrereleases: boolean }) {
+  const coreIntersect = axisExample(examples, (e) => e.core, (row) => row.outcome === 'intersect');
+  const coreDisjoint = axisExample(examples, (e) => e.core, (row) => row.outcome === 'disjoint');
+  const declaredSatisfied = axisExample(examples, (e) => e.declared, (row) => row.satisfied);
+  const declaredUnsatisfied = axisExample(examples, (e) => e.declared, (row) => !row.satisfied);
+  const peerIntersect = axisExample(examples, (e) => e.peers, (row) => row.outcome === 'intersect');
+  const peerDisjoint = axisExample(examples, (e) => e.peers, (row) => row.outcome === 'disjoint');
+  const transitive = useMemo(() => findTransitiveRangeExample(packages, includePrereleases), [packages, includePrereleases]);
+
+  return (
+    <Section id="axes" title="The three axes">
+      <Paragraph>
+        The engine compares a pair of package versions on three axes. Each axis has an outcome; the verdict is the
+        strongest outcome across them.
+      </Paragraph>
+
+      <Title level={4}>1. Core range</Title>
+      <Paragraph>
+        A parser or UI package declares a version range on a core package: <code>geostyler-style</code> for style
+        parsers and UI packages, <code>geostyler-data</code> for data parsers. Two ranges that intersect mean both
+        versions read and write the same schema. Disjoint ranges mean npm installs two copies of the core package, and
+        style or data objects may not match between them. When one member of the pair is the core package itself, its
+        version must satisfy the other's range.
+      </Paragraph>
+      <AxisExample example={coreIntersect} missing="pair has intersecting core ranges" table={(a, b, rows) => <CoreAxisTable a={a} b={b} rows={rows} />} />
+      <AxisExample example={coreDisjoint} missing="pair has disjoint core ranges" table={(a, b, rows) => <CoreAxisTable a={a} b={b} rows={rows} />} />
+      <Paragraph>
+        A version that declares no core range can inherit one through a declared dependency on a tracked package. The
+        build step follows declared dependencies, taking the newest version satisfying each range, until it reaches a
+        declared core range. It records where that range came from, and the version history on each package page shows
+        the origin.
+      </Paragraph>
+      {transitive ? (
+        <Flex vertical>
+          <Text type="secondary">Example: {versionLabel(transitive.version)}</Text>
+          <Text>
+            Its <code>{transitive.core}</code> range <code>{transitive.range.range}</code> comes from{' '}
+            {transitive.range.origin.name} {transitive.range.origin.version}, reached through its declared dependencies.
+          </Text>
+        </Flex>
+      ) : (
+        <NoExample what="version inherits a core range" />
+      )}
+
+      <Title level={4}>2. Declared dependency</Title>
+      <Paragraph>
+        A UI package lists parsers in its <code>dependencies</code> with a range. When the chosen parser version
+        satisfies that range, upstream built and tested the pair, whatever their core ranges say. When it does not, npm
+        installs the parser twice: your version and the one the UI package bundles.
+      </Paragraph>
+      <AxisExample example={declaredSatisfied} missing="pair has a satisfied declared dependency" table={(_a, _b, rows) => <DeclaredDependencyTable rows={rows} />} />
+      <AxisExample example={declaredUnsatisfied} missing="pair has an unsatisfied declared dependency" table={(_a, _b, rows) => <DeclaredDependencyTable rows={rows} />} />
+
+      <Title level={4}>3. Shared peer</Title>
+      <Paragraph>
+        An external package both versions list in <code>peerDependencies</code>, such as <code>ol</code> or{' '}
+        <code>react</code>. A project holds one copy of a peer, so disjoint ranges make <code>npm install</code> fail.
+        This is the only axis that can break installation.
+      </Paragraph>
+      <AxisExample example={peerIntersect} missing="pair shares a peer with intersecting ranges" table={(a, b, rows) => <SharedPeerTable a={a} b={b} rows={rows} />} />
+      <AxisExample example={peerDisjoint} missing="pair shares a peer with disjoint ranges" table={(a, b, rows) => <SharedPeerTable a={a} b={b} rows={rows} />} />
+    </Section>
+  );
+}
+
+function VerdictEntry({ verdict, example }: { verdict: Verdict; example: PairEvaluation | null }) {
+  const meta = VERDICT_META[verdict];
+  return (
+    <li className="docs-verdict">
+      <Flex gap="small" align="baseline" wrap>
+        <VerdictTag verdict={verdict} />
+        <Text type="secondary">{COLOR_NAME[meta.status]}</Text>
+      </Flex>
+      <Paragraph className="docs-verdict__definition">{meta.definition}</Paragraph>
+      {example ? (
+        <Flex vertical gap="small">
+          <ExampleSentence a={example.a} b={example.b}>
+            {verdictSentence(example)}
+          </ExampleSentence>
+          <Collapse
+            size="small"
+            items={[{ key: 'detail', label: 'How this verdict was reached', children: <VerdictDetail evaluation={example} /> }]}
+          />
+        </Flex>
+      ) : (
+        <NoExample what="pair of tracked versions has this verdict" />
+      )}
+    </li>
+  );
+}
+
+function VerdictsSection({ examples }: { examples: VerdictExamples }) {
+  return (
+    <Section id="verdicts" title="The seven verdicts">
+      <Paragraph>
+        Every pair gets exactly one verdict. Conflict wins over every other outcome; Independent applies only when no
+        other rule does. The colour and icon are the same in the latest releases grid, the version set, the pair matrix
+        and the cell detail. Independent and Unknown are grey on purpose: nothing was checked, or data was missing, and
+        neither is a pass. Each example below is a real pair from the current dataset, with the sentence the app shows
+        for it.
+      </Paragraph>
+      <ul className="docs-verdicts">
+        {VERDICTS.map((verdict) => (
+          <VerdictEntry key={verdict} verdict={verdict} example={examples[verdict]} />
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function VersionSetsSection({ packages, includePrereleases }: { packages: Package[]; includePrereleases: boolean }) {
+  const { exampleStack, viaPair } = useMemo(() => {
+    const isTracked = (name: string) => packages.some((p) => p.name === name);
+    const result = buildVersionSet(packages, VIA_STACK.filter(isTracked), { includePrereleases });
+    return {
+      exampleStack: EXAMPLE_STACK.filter(isTracked),
+      viaPair: result.status === 'found' ? (result.set.pairs.find((pair) => pair.via) ?? null) : null,
+    };
+  }, [packages, includePrereleases]);
+
+  return (
+    <Section id="version-sets" title="Version sets">
+      <Paragraph>
+        The stack builder searches for an anchor: a <code>geostyler-style</code> version and, inside it, a{' '}
+        <code>geostyler-data</code> version, newest first. For each anchor, every package in the stack takes its newest
+        stable version whose core ranges accept the anchor, or its pinned version. A package that another chosen package
+        declares then moves to the newest version satisfying that declared range, even when its own core range differs.
+        The set is accepted when every pair is Compatible, Shipped together or Independent. The first accepted set wins.
+      </Paragraph>
+      <Title level={4}>Shipped together through a third package</Title>
+      <Paragraph>
+        In a version set, a Risk pair also counts as Shipped together when a third chosen version declares both members
+        in satisfied ranges. The pair verdict itself stays Risk; only the stack builder applies this rule, and it names
+        the declaring version.
+      </Paragraph>
+      {viaPair ? (
+        <ExampleSentence a={viaPair.a} b={viaPair.b}>
+          {stackPairSentence(viaPair)}
+        </ExampleSentence>
+      ) : (
+        <NoExample what="version set has a pair vouched for by a third package" />
+      )}
+      <Title level={4}>Pins</Title>
+      <Paragraph>
+        A pin fixes one package at a version you cannot change. The search keeps it and finds what fits around it. When
+        no set keeps every pin, the page lists the failing pairs with their verdicts. It also names the pin to relax:
+        the pinned package in the most failing pairs. A pin on a version the dataset does not have is left out and reported.
+      </Paragraph>
+      <Title level={4}>Partial set</Title>
+      <Paragraph>
+        When no set exists, the search retries with one package removed, the pin to relax first and then each stack
+        package in order. The first removal that leaves a set is offered as a partial set, naming the removed package.
+      </Paragraph>
+      <Title level={4}>Bottleneck</Title>
+      <Paragraph>
+        When a set passes over a package's newest release, the bottleneck is the stack package whose removal moves the
+        anchor furthest forward. The sentence names the anchor the set would reach without it. A table under it lists
+        every newest release passed over, with the core range that release declares.
+      </Paragraph>
+      <Title level={4}>Example stack</Title>
+      <Paragraph>
+        The version set for {exampleStack.join(', ')}, computed now from the dataset.{' '}
+        <Link to="/" search={{ stack: exampleStack.join(',') }}>
+          Open this stack in the stack builder
+        </Link>
+        .
+      </Paragraph>
+      {exampleStack.length > 0 ? (
+        <VersionSetView packages={packages} selection={{ stack: exampleStack, pins: {} }} />
+      ) : (
+        <NoExample what="package of the example stack is tracked" />
+      )}
+    </Section>
+  );
+}
+
+function DataSection({ packages, includePrereleases }: { packages: Package[]; includePrereleases: boolean }) {
+  const generatedDate = formatUtcDate(datasetGeneratedAt);
+  const typesOnly =
+    packages.map((pkg) => latestVersion(pkg, includePrereleases)).find((v) => v?.moduleSystem === 'types-only') ??
+    packages.flatMap((pkg) => pkg.versions).find((v) => v.moduleSystem === 'types-only');
+
+  return (
+    <Section id="data" title="Where the data comes from">
+      <Paragraph>
+        The build step reads the npm registry for the tracked packages and writes one data file. It reads nothing else:
+        no GitHub API, no changelogs. A GitHub Actions workflow runs it on every push to <code>main</code>, daily at
+        midnight UTC and on demand, then deploys the site to GitHub Pages. This copy was generated on{' '}
+        {generatedDate ? <time dateTime={datasetGeneratedAt}>{generatedDate}</time> : 'an unknown date'} (UTC).
+      </Paragraph>
+      <Paragraph>
+        For each version the file keeps the version number, publish date, prerelease flag and module system. It also
+        keeps the core ranges with their source, the declared dependencies on tracked packages and the peer
+        dependencies. The build step computes no verdict. Your browser evaluates every pair and every version set from that file, so the build and the page
+        cannot disagree on what compatible means.
+      </Paragraph>
+      <Title level={4}>Module system</Title>
+      <Paragraph>
+        Whether a version ships ESM, CJS or TypeScript declarations only is shown on the package page as a fact. It is
+        not an axis and never changes a verdict.
+        {typesOnly && (
+          <>
+            {' '}
+            A types-only package such as {versionLabel(typesOnly)} has no module system to clash with.
+          </>
+        )}
+      </Paragraph>
+    </Section>
+  );
+}
+
 function Docs() {
+  const { data: packages } = usePackages();
+  const [includePrereleases] = usePrereleases();
+  const examples = useMemo(() => findVerdictExamples(packages, includePrereleases), [packages, includePrereleases]);
+
   useEffect(() => {
     document.title = 'Docs · GeoStyler Compatibility';
   }, []);
 
-  const docItems = [
-    {
-      key: 'categories',
-      label: '📦 Package Categories',
-      children: (
-        <Flex vertical gap="middle">
-          <p>All GeoStyler packages fall into one of four categories:</p>
-
-          <div>
-            <h4>🔗 Core Packages</h4>
-            <p>
-              Core data structures that all other packages depend on. These define the standard format for styles and data.
-            </p>
-            <Table
-              columns={[
-                { title: 'Package', dataIndex: 'name', key: 'name', render: (name: string) => <code>{name}</code> },
-                { title: 'Purpose', dataIndex: 'purpose', key: 'purpose' },
-              ]}
-              dataSource={[
-                { key: 'style', name: 'geostyler-style', purpose: 'Universal style format that all style parsers convert to/from' },
-                { key: 'data', name: 'geostyler-data', purpose: 'Universal data feature format that all data parsers convert to/from' },
-              ]}
-              pagination={false}
-              size="small"
-            />
-            <Alert 
-              title="All style/data parsers depend on these core packages within specific version ranges"
-              type="info"
-             
-            />
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>🎨 Style Parsers</h4>
-            <p>Convert between geostyler-style and specific style format representations (SLD, Mapbox, QGIS, etc.).</p>
-            <Alert 
-              title="All require geostyler-style in specific version ranges"
-              description="When combining style parsers, they must share compatible geostyler-style versions"
-              type="info"
-            />
-            <p>
-              <strong>Examples:</strong> geostyler-sld-parser, geostyler-mapbox-parser, geostyler-qgis-parser, geostyler-openlayers-parser
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>📊 Data Parsers</h4>
-            <p>Convert between geostyler-data and specific data format representations (GeoJSON, WFS, Shapefile, CQL).</p>
-            <Alert 
-              title="All require geostyler-data"
-              description="Data parsers are less tightly coupled than style parsers - each has independent geostyler-data dependency"
-              type="info"
-            />
-            <p>
-              <strong>Examples:</strong> geostyler-geojson-parser, geostyler-wfs-parser, geostyler-shapefile-parser
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>🎚️ UI Packages</h4>
-            <p>React components for building GeoStyler user interfaces.</p>
-            <p>
-              <strong>Examples:</strong> geostyler (main UI components), geostyler-legend (legend display)
-            </p>
-          </div>
-        </Flex>
-      ),
-    },
-    {
-      key: 'compatibility',
-      label: '🔄 How Compatibility is Determined',
-      children: (
-        <Flex vertical gap="middle">
-          <p>Package compatibility depends on several factors:</p>
-
-          <div>
-            <h4>1. geostyler-style Version Intersection</h4>
-            <p>
-              The primary factor for style parser compatibility. Each style parser specifies which versions of geostyler-style it supports.
-            </p>
-            <Alert 
-              title="When combining multiple style parsers, they must have overlapping geostyler-style ranges"
-              type="warning"
-              showIcon
-             
-            />
-            <p>
-              <strong>Example:</strong>
-            </p>
-            <Table
-              columns={[
-                { title: 'Package', dataIndex: 'pkg', key: 'pkg', render: (pkg: string) => <code>{pkg}</code> },
-                { title: 'geostyler-style Range', dataIndex: 'range', key: 'range', render: (range: string) => <code>{range}</code> },
-              ]}
-              dataSource={[
-                { key: 'sld', pkg: 'geostyler-sld-parser@8.3.0', range: '^11.0.0' },
-                { key: 'mapbox', pkg: 'geostyler-mapbox-parser@7.1.0', range: '^11.0.0' },
-              ]}
-              pagination={false}
-              size="small"
-            />
-            <p>
-              ✓ <strong>Compatible:</strong> Both require ^11.0.0, so the shared range is ^11.0.0
-            </p>
-
-            <Table
-              columns={[
-                { title: 'Package', dataIndex: 'pkg', key: 'pkg', render: (pkg: string) => <code>{pkg}</code> },
-                { title: 'geostyler-style Range', dataIndex: 'range', key: 'range', render: (range: string) => <code>{range}</code> },
-              ]}
-              dataSource={[
-                { key: 'sld', pkg: 'geostyler-sld-parser@8.2.0', range: '^10.5.0' },
-                { key: 'mapbox', pkg: 'geostyler-mapbox-parser@7.2.0', range: '^10.3.0' },
-              ]}
-              pagination={false}
-              size="small"
-             
-            />
-            <p>
-              ✗ <strong>Incompatible:</strong> ^10.5.0 ∩ ^10.3.0 = ∅ (no overlapping versions)
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>2. ESM vs CommonJS Module System</h4>
-            <p>
-              Modern packages (2024+) are ESM-only, while older versions support CommonJS (CJS). Mixing can cause bundling issues.
-            </p>
-            <Alert 
-              title="⚠ Warning: Mixed ESM and CJS"
-              description="If some packages are ESM and others are CJS, your build tool must support interop"
-              type="warning"
-              showIcon
-            />
-            <p>
-              <strong>Example Versions:</strong>
-            </p>
-            <Table
-              columns={[
-                { title: 'Package', dataIndex: 'pkg', key: 'pkg', render: (pkg: string) => <code>{pkg}</code> },
-                { 
-                  title: 'Module System', 
-                  dataIndex: 'esm', 
-                  key: 'esm', 
-                  render: (esm: boolean) => <Badge color={esm ? 'green' : 'blue'} text={esm ? 'ESM' : 'CJS'} />
-                },
-              ]}
-              dataSource={[
-                { key: 'v1', pkg: 'geostyler-sld-parser@8.3.0', esm: true },
-                { key: 'v2', pkg: 'geostyler-sld-parser@7.5.0', esm: false },
-              ]}
-              pagination={false}
-              size="small"
-            />
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>3. Peer Dependencies</h4>
-            <p>
-              Some packages may have peer dependencies that conflict with other packages.
-            </p>
-            <Alert 
-              title="Check the package detail pages to see all dependencies and peer dependencies"
-              type="info"
-              showIcon
-            />
-          </div>
-        </Flex>
-      ),
-    },
-    {
-      key: 'how-to-compare',
-      label: '🔍 How to Use the Compare Tool',
-      children: (
-        <Flex vertical gap="middle">
-          <ol>
-            <li>
-              <strong>Select packages</strong>
-              <p>Go to the Compare page and add 2 or more packages using the package selector.</p>
-            </li>
-            <li>
-              <strong>View compatibility analysis</strong>
-              <p>See if the selected versions can work together. The analysis shows:</p>
-              <ul>
-                <li>Overall compatible/incompatible status</li>
-                <li>geostyler-style version requirements and intersection</li>
-                <li>Module system (ESM vs CJS) compatibility</li>
-                <li>Any detected conflicts or warnings</li>
-              </ul>
-            </li>
-            <li>
-              <strong>Explore version matrix</strong>
-              <p>Select exactly 2 packages to see the "Version Compatibility Matrix," which shows all version combinations between them:</p>
-              <ul>
-                <li>Package A versions as rows, Package B versions as columns</li>
-                <li>Green cells = compatible versions</li>
-                <li>Red cells = incompatible versions</li>
-                <li>Look for the ⭐ star badge for recommended (latest compatible) pair</li>
-              </ul>
-            </li>
-            <li>
-              <strong>Click for details</strong>
-              <p>Click any cell in the matrix to see detailed compatibility breakdown for that specific version pair.</p>
-            </li>
-            <li>
-              <strong>Install compatible versions</strong>
-              <p>Once you've identified compatible versions, use npm to install:</p>
-              <p>
-                <code>npm install geostyler-sld-parser@8.3.0 geostyler-mapbox-parser@7.1.0</code>
-              </p>
-            </li>
-          </ol>
-        </Flex>
-      ),
-    },
-    {
-      key: 'how-to-dashboard',
-      label: '📊 Overview Page',
-      children: (
-        <Flex vertical gap="middle">
-          <p>The Overview page lists all available packages.</p>
-
-          <div>
-            <h4>Package Statistics</h4>
-            <p>Quick summary cards showing:</p>
-            <ul>
-              <li><strong>Total Packages:</strong> Count of all packages being tracked</li>
-              <li><strong>Core Packages:</strong> Core packages (geostyler-style, geostyler-data)</li>
-              <li><strong>Style Parsers:</strong> Packages for style format conversion</li>
-              <li><strong>Data Parsers:</strong> Packages for data format conversion</li>
-            </ul>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Package Table & Filtering</h4>
-            <p>Browse all packages with filters:</p>
-            <ul>
-              <li><strong>Category Filter:</strong> Show only specific package types (core, style-parser, data-parser, ui)</li>
-              <li><strong>Module System Filter:</strong> Filter by ESM or CommonJS support</li>
-            </ul>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Package Details</h4>
-            <p>Click any package name to see:</p>
-            <ul>
-              <li>All available versions with publication dates</li>
-              <li>Dependencies and peer dependencies for each version</li>
-              <li>geostyler-style range requirements (for style parsers)</li>
-              <li>ESM support status per version</li>
-              <li>Links to npm, GitHub, and changelog</li>
-            </ul>
-          </div>
-        </Flex>
-      ),
-    },
-    {
-      key: 'faq',
-      label: '❓ Frequently Asked Questions',
-      children: (
-        <Flex vertical gap="middle">
-          <div>
-            <h4>Q: Why can't I use these two packages together?</h4>
-            <p>
-              <strong>A:</strong> Most likely because they don't have overlapping geostyler-style version requirements. Each style parser specifies which versions of geostyler-style it's compatible with. If those ranges don't overlap, the packages can't work together.
-            </p>
-            <p>
-              <strong>Solution:</strong> Use the Compare tool's Version Compatibility Matrix to find compatible version pairs.
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Q: Can I mix ESM and CommonJS packages?</h4>
-            <p>
-              <strong>A:</strong> It depends on your build tool. Modern bundlers (Webpack 5+, Vite, etc.) can handle mixed ESM/CJS, but you may encounter issues. It's recommended to use all ESM or all CJS for the same project when possible.
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Q: Why should I care about geostyler-style versions?</h4>
-            <p>
-              <strong>A:</strong> geostyler-style is the universal format that all style parsers convert to/from. When you use multiple parsers together, they all need to be able to read/write the same version of geostyler-style to share data correctly. If their requirements don't overlap, they can't communicate.
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Q: What's the difference between style parsers and data parsers?</h4>
-            <p>
-              <strong>A:</strong>
-            </p>
-            <ul>
-              <li>
-                <strong>Style Parsers:</strong> Convert style definitions (how things look) to/from formats like SLD, Mapbox GL, QGIS, etc. All tightly coupled through geostyler-style.
-              </li>
-              <li>
-                <strong>Data Parsers:</strong> Convert data/feature structures to/from formats like GeoJSON, WFS, Shapefile. All depend on geostyler-data but are less tightly coupled.
-              </li>
-            </ul>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Q: Can I see version history for a package?</h4>
-            <p>
-              <strong>A:</strong> Yes! Go to the package detail page (click a package name from the Overview page) to see all versions with publication dates, dependencies, and other metadata.
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Q: How often is this data updated?</h4>
-            <p>
-              <strong>A:</strong> The package metadata is automatically refreshed daily from the npm registry and GitHub API. You can also check GitHub Actions for the latest build status.
-            </p>
-          </div>
-        </Flex>
-      ),
-    },
-    {
-      key: 'technical-details',
-      label: '⚙️ Technical Details',
-      children: (
-        <Flex vertical gap="middle">
-          <div>
-            <h4>Data Sources</h4>
-            <ul>
-              <li><strong>npm Registry:</strong> Package versions, dependencies, peer dependencies</li>
-              <li><strong>GitHub API:</strong> Repository metadata, update timestamps</li>
-            </ul>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Build-Time Data Generation</h4>
-            <p>
-              Package metadata is generated at build time, not at runtime. This means:
-            </p>
-            <ul>
-              <li>✓ No network requests needed while using the app</li>
-              <li>✓ Data is bundled with the application</li>
-              <li>✓ App works offline</li>
-              <li>Data updates once per day via GitHub Actions</li>
-            </ul>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>Compatible with...</h4>
-            <p>
-              This compatibility checker tracks the official GeoStyler packages maintained by the GeoStyler team. Check the repository list on GitHub for the definitive list of tracked packages.
-            </p>
-          </div>
-
-          <Divider />
-
-          <div>
-            <h4>About This Tool</h4>
-            <p>
-              Built with React, TypeScript, Ant Design, and TanStack Router to help developers navigate the GeoStyler package ecosystem and find compatible version combinations.
-            </p>
-          </div>
-        </Flex>
-      ),
-    },
-  ];
-
   return (
     <Flex vertical gap="large">
-      <Card
-        title={
-          <span>
-            <FileTextOutlined aria-hidden="true" /> Documentation
-          </span>
-        }
-      >
-        <Typography.Paragraph>
-          Welcome to the GeoStyler Compatibility Checker documentation. Use the sections below to understand how packages are organized, how compatibility is determined, and how to use this tool effectively.
-        </Typography.Paragraph>
+      <Card title={<Title level={2} className="docs-section__title">Documentation</Title>}>
+        <Paragraph>
+          This site answers one question: you use some GeoStyler packages, which versions do you install together? Every
+          verdict and version set is computed in your browser from npm registry metadata. The examples on this page are
+          computed the same way, so they change when the data does.
+        </Paragraph>
+        <nav aria-label="Sections">
+          <ul className="docs-toc">
+            {SECTIONS.map(({ id, title }) => (
+              <li key={id}>
+                <a href={`#${id}`}>{title}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </Card>
-
-      <Collapse items={docItems} />
+      <PagesSection />
+      <PackagesSection packages={packages} includePrereleases={includePrereleases} />
+      <AxesSection examples={examples} packages={packages} includePrereleases={includePrereleases} />
+      <VerdictsSection examples={examples} />
+      <VersionSetsSection packages={packages} includePrereleases={includePrereleases} />
+      <DataSection packages={packages} includePrereleases={includePrereleases} />
     </Flex>
   );
 }

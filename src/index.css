@@ -275,3 +275,47 @@
   flex: 1 1 280px;
   min-width: 0;
 }
+
+/* --- Docs -------------------------------------------------------------- */
+
+.ant-card-head .docs-section__title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.docs-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.docs-definitions {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.docs-verdicts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.docs-verdict__definition {
+  margin: 8px 0 0;
+}
+
+/* The sentence the app shows for the example pair. */
+.docs-example {
+  margin: 0;
+  padding: 4px 12px;
+  border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
