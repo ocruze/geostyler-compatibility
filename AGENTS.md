@@ -17,7 +17,7 @@ Sibling checkouts under the parent directory are `geostyler-cql-parser`, `geosty
 - Lint: `npm run lint` (ESLint 9 flat config — passes cleanly)
 - Test: `npm test` (Vitest, one-shot) / `npm run test:watch`
 
-Node is pinned via `.nvmrc` to `24.14.0`. Vitest covers `src/utils/semver.ts`, `src/utils/date.ts`, `src/utils/stackSearch.ts`, `src/engine/*` (against real records frozen in `src/engine/__fixtures__/versions.json`), and `scripts/fetch-metadata.ts` (`processNpmData`, `resolveTransitiveCoreRanges`, `detectModuleSystem`) against recorded registry responses in `scripts/__fixtures__/registry/`, plus `src/constants/repos.ts` (10 test files, 99 tests). No component tests: routes call only the engine. No Storybook, no commitlint/semantic-release in this app.
+Node is pinned via `.nvmrc` to `24.14.0`. Vitest covers `src/utils/semver.ts`, `src/utils/date.ts`, `src/utils/stackSearch.ts`, `src/engine/*` (against real records frozen in `src/engine/__fixtures__/versions.json`), and `scripts/fetch-metadata.ts` (`processNpmData`, `resolveTransitiveCoreRanges`, `detectModuleSystem`) against recorded registry responses in `scripts/__fixtures__/registry/`, plus `src/constants/repos.ts` (11 test files, 106 tests). No component tests: routes call only the engine. No Storybook, no commitlint/semantic-release in this app.
 
 ## Gotchas (read before running)
 
