@@ -4,7 +4,6 @@ A web interface for checking compatibility between GeoStyler packages — style 
 
 ## 🎯 Features
 
-- **Package Overview**: Browse all GeoStyler packages with their latest versions and metadata
 - **Stack builder**: tick the packages you use, get a version set, an `npm install` line and the bottleneck
 - **Package page**: version history with core ranges and the pair matrix against any other tracked package
 - **Format Support**: Track which parsers support which style/data formats
@@ -24,7 +23,7 @@ Every verdict and version set is computed in the browser by `src/engine/` (see `
 
 - **React SPA** with Vite
 - **TanStack Router** for type-safe routing
-- No runtime data fetching — static JSON (generated at build time) is imported directly; `use*` hooks in `src/api/queries.ts` are synchronous wrappers, not TanStack Query
+- No runtime data fetching — static JSON (generated at build time) is imported directly; `usePackages` in `src/api/queries.ts` is a synchronous wrapper, not TanStack Query
 
 ## 🚀 Getting Started
 
@@ -43,7 +42,7 @@ npm install
 
 1. Generate data:
    ```bash
-   npm run generate-data
+   npm run fetch-metadata
    ```
 
 2. Start dev server:
@@ -59,7 +58,6 @@ npm install
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run fetch-metadata` - Fetch package data from the npm registry
-- `npm run generate-data` - Alias of `fetch-metadata`
 - `npm test` - Run the Vitest test suite
 - `npm run lint` - Lint with ESLint
 
