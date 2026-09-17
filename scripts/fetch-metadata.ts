@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 
 /**
- * Fetches package metadata from the npm registry (serial, rate-limited).
+ * Fetches package metadata from the npm registry (serial, rate-limited) and
+ * writes the trimmed dataset the runtime engine reads (ADR-0005).
  * Generates src/data/packages.json
  */
 
@@ -193,25 +194,16 @@ export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: stri
     // Skip invalid versions
     if (!semver.valid(versionTag)) continue;
 
-    const coreRanges = extractCoreRanges(versionData);
-    const styleRange = coreRanges['geostyler-style'];
-
     const packageVersion: PackageVersion = {
       name: npmPackageName,
       version: versionTag,
       category,
-      dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
-      coreRanges,
+      coreRanges: extractCoreRanges(versionData),
       declaredDependencies: extractDeclaredDependencies(versionData.dependencies),
       moduleSystem: detectModuleSystem(versionData),
-      geostylerStyleRange: styleRange.source === 'declared' ? styleRange.range : undefined,
-      esmSupport: detectEsmSupport(versionData),
       publishDate: npmData.time?.[versionTag] ?? '',
       isPrerelease: semver.prerelease(versionTag) !== null,
-      repositoryUrl: `https://github.com/${repoName}`,
-      changelogUrl: `https://github.com/${repoName}/blob/main/CHANGELOG.md`,
-      npmUrl: `https://www.npmjs.com/package/${npmPackageName}/v/${versionTag}`,
     };
     
     versions.push(packageVersion);

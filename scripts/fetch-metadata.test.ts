@@ -93,6 +93,20 @@ describe('processNpmData', () => {
     expect(versionOf('geostyler-style', '13.0.0').coreRanges['geostyler-style']).toEqual({ source: 'none' });
   });
 
+  it('writes only the fields the engine reads on a version record', () => {
+    expect(Object.keys(versionOf('geostyler', '18.6.0')).sort()).toEqual([
+      'category',
+      'coreRanges',
+      'declaredDependencies',
+      'isPrerelease',
+      'moduleSystem',
+      'name',
+      'peerDependencies',
+      'publishDate',
+      'version',
+    ]);
+  });
+
   it('keeps the existing package-level fields', () => {
     const pkg = processNpmData(registry('geostyler-legend'), 'geostyler-legend');
     expect(pkg.category).toBe('ui');

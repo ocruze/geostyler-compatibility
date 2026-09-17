@@ -40,36 +40,22 @@ export type CoreRange =
 export type CoreRanges = Record<CorePackage, CoreRange>;
 
 /**
- * Package information including version and dependency details
+ * One published version, trimmed to what the engine reads (ADR-0005).
  */
 export interface PackageVersion {
   name: string;
   version: string;
   category: PackageCategory;
-  format?: StyleFormat | DataFormat;
-  
-  // Dependency information
-  dependencies: Record<string, string>;
-  peerDependencies: Record<string, string>;
-  
+
   // Three-axis inputs (ADR-0004)
   coreRanges: CoreRanges;
   // Dependencies on tracked packages only
   declaredDependencies: Record<string, string>;
+  peerDependencies: Record<string, string>;
   moduleSystem: ModuleSystem;
 
-  // Legacy markers, kept until the old engine is removed
-  geostylerStyleRange?: string;
-  esmSupport: boolean;
-  
-  // Metadata
   publishDate: string;
   isPrerelease: boolean;
-  
-  // Links
-  repositoryUrl: string;
-  changelogUrl?: string;
-  npmUrl: string;
 }
 
 /**
