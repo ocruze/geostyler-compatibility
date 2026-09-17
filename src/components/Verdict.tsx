@@ -10,7 +10,7 @@ import {
   type PairEvaluation,
   type SharedPeerAxis,
 } from '@/engine';
-import type { CoreRange, Verdict } from '@/types/compatibility';
+import type { CoreRange, PackageVersion, Verdict } from '@/types/compatibility';
 import { formatRangeForDisplay } from '@/utils/semver';
 
 import { TAG_COLOR, VERDICT_META, VERDICTS, useStatusColors } from './verdictMeta';
@@ -68,56 +68,61 @@ const OUTCOME_LABEL: Record<CoreAxis['outcome'], string> = {
   missing: 'Missing',
 };
 
-export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
-  const { a, b, verdict, core, declared, peers } = evaluation;
+interface AxisTableProps<T> {
+  a: PackageVersion;
+  b: PackageVersion;
+  rows: T[];
+}
 
-  const coreColumns: ColumnsType<CoreAxis> = [
+const outcomeColumn = <T extends CoreAxis | SharedPeerAxis>(): ColumnsType<T>[number] => ({
+  title: 'Outcome',
+  key: 'outcome',
+  render: (_, axis) =>
+    axis.intersection ? <code>{formatRangeForDisplay(axis.intersection)}</code> : OUTCOME_LABEL[axis.outcome],
+});
+
+export function CoreAxisTable({ a, b, rows }: AxisTableProps<CoreAxis>) {
+  const columns: ColumnsType<CoreAxis> = [
     { title: 'Core package', dataIndex: 'core', render: (c: string) => <code>{c}</code> },
     { title: versionLabel(a), key: 'a', render: (_, axis) => (a.name === axis.core ? <code>{a.version}</code> : <CoreRangeText range={axis.a} />) },
     { title: versionLabel(b), key: 'b', render: (_, axis) => (b.name === axis.core ? <code>{b.version}</code> : <CoreRangeText range={axis.b} />) },
-    {
-      title: 'Outcome',
-      key: 'outcome',
-      render: (_, axis) =>
-        axis.intersection ? <code>{formatRangeForDisplay(axis.intersection)}</code> : OUTCOME_LABEL[axis.outcome],
-    },
+    outcomeColumn<CoreAxis>(),
   ];
+  return <Table size="small" pagination={false} rowKey="core" columns={columns} dataSource={rows} scroll={{ x: 'max-content' }} />;
+}
 
-  const declaredColumns: ColumnsType<DeclaredDependencyAxis> = [
+export function DeclaredDependencyTable({ rows }: { rows: DeclaredDependencyAxis[] }) {
+  const columns: ColumnsType<DeclaredDependencyAxis> = [
     { title: 'Declared by', dataIndex: 'from', render: (n: string) => <code>{n}</code> },
     { title: 'On', dataIndex: 'to', render: (n: string) => <code>{n}</code> },
     { title: 'Range', dataIndex: 'range', render: (r: string) => <code>{r}</code> },
     { title: 'Chosen version', dataIndex: 'version', render: (v: string) => <code>{v}</code> },
     { title: 'Outcome', dataIndex: 'satisfied', render: (ok: boolean) => (ok ? 'Satisfied' : 'Not satisfied') },
   ];
+  return <Table size="small" pagination={false} rowKey={(d) => `${d.from}>${d.to}`} columns={columns} dataSource={rows} scroll={{ x: 'max-content' }} />;
+}
 
-  const peerColumns: ColumnsType<SharedPeerAxis> = [
+export function SharedPeerTable({ a, b, rows }: AxisTableProps<SharedPeerAxis>) {
+  const columns: ColumnsType<SharedPeerAxis> = [
     { title: 'Shared peer', dataIndex: 'peer', render: (n: string) => <code>{n}</code> },
     { title: versionLabel(a), dataIndex: 'a', render: (r: string) => <code>{r}</code> },
     { title: versionLabel(b), dataIndex: 'b', render: (r: string) => <code>{r}</code> },
-    {
-      title: 'Outcome',
-      key: 'outcome',
-      render: (_, axis) =>
-        axis.intersection ? <code>{formatRangeForDisplay(axis.intersection)}</code> : OUTCOME_LABEL[axis.outcome],
-    },
+    outcomeColumn<SharedPeerAxis>(),
   ];
+  return <Table size="small" pagination={false} rowKey="peer" columns={columns} dataSource={rows} scroll={{ x: 'max-content' }} />;
+}
 
+export function VerdictDetail({ evaluation }: { evaluation: PairEvaluation }) {
+  const { a, b, verdict, core, declared, peers } = evaluation;
   return (
     <Flex vertical gap="middle">
       <div>
         <VerdictTag verdict={verdict} />
         <Text>{verdictSentence(evaluation)}</Text>
       </div>
-      {core.length > 0 && (
-        <Table size="small" pagination={false} rowKey="core" columns={coreColumns} dataSource={core} scroll={{ x: 'max-content' }} />
-      )}
-      {declared.length > 0 && (
-        <Table size="small" pagination={false} rowKey={(d) => `${d.from}>${d.to}`} columns={declaredColumns} dataSource={declared} scroll={{ x: 'max-content' }} />
-      )}
-      {peers.length > 0 && (
-        <Table size="small" pagination={false} rowKey="peer" columns={peerColumns} dataSource={peers} scroll={{ x: 'max-content' }} />
-      )}
+      {core.length > 0 && <CoreAxisTable a={a} b={b} rows={core} />}
+      {declared.length > 0 && <DeclaredDependencyTable rows={declared} />}
+      {peers.length > 0 && <SharedPeerTable a={a} b={b} rows={peers} />}
     </Flex>
   );
 }

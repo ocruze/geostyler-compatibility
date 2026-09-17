@@ -72,6 +72,15 @@ export const VERDICT_META: Record<Verdict, VerdictMeta> = {
   },
 };
 
+// The colour word the docs use for each status.
+export const COLOR_NAME: Record<VerdictStatus, string> = {
+  error: 'red',
+  warning: 'amber',
+  info: 'blue',
+  success: 'green',
+  neutral: 'grey',
+};
+
 export const TAG_COLOR: Record<VerdictStatus, string> = {
   error: 'error',
   warning: 'warning',
