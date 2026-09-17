@@ -41,8 +41,6 @@ jobs:
               run: npm ci
 
             - name: Fetch package metadata
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: npm run fetch-metadata
 
             - name: Build site
