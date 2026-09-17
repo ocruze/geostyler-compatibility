@@ -5,10 +5,8 @@ A web interface for checking compatibility between GeoStyler packages — style 
 ## 🎯 Features
 
 - **Package Overview**: Browse all GeoStyler packages with their latest versions and metadata
-- **Compatibility Matrix**: Pre-computed compatibility checks for package combinations; the Compare page's version-by-version matrix (exactly 2 packages) defaults to a "problems only" view with the full grid collapsed
-- **Package Details**: View version history, dependencies, and geostyler-style ranges
-- **Package Comparison**: Compare multiple packages to detect compatibility conflicts
-- **ESM/CJS Tracking**: See which packages support ESM vs CJS module systems
+- **Stack builder**: tick the packages you use, get a version set, an `npm install` line and the bottleneck
+- **Package page**: version history with core ranges and the pair matrix against any other tracked package
 - **Format Support**: Track which parsers support which style/data formats
 
 ## 🏗️ Architecture
@@ -16,14 +14,11 @@ A web interface for checking compatibility between GeoStyler packages — style 
 ### Data Generation (Build Time)
 
 1. **Fetch Metadata** ([scripts/fetch-metadata.ts](scripts/fetch-metadata.ts))
-   - Pulls package data from npm registry
+   - Pulls package data from the npm registry and trims it to what the engine reads
+   - Resolves transitive core ranges, the one build-time computation
    - Outputs: `src/data/packages.json` (`{ generatedAt, packages }`; the app footer shows `generatedAt` as a UTC date)
 
-2. **Compute Compatibility** ([scripts/compute-compatibility.ts](scripts/compute-compatibility.ts))
-   - Analyzes geostyler-style version ranges
-   - Checks ESM/CJS compatibility
-   - Detects peer dependency conflicts
-   - Outputs: `src/data/compatibility-matrix.json`
+Every verdict and version set is computed in the browser by `src/engine/` (see `docs/adr/0005-single-runtime-engine.md`).
 
 ### Frontend (Runtime)
 
@@ -64,8 +59,7 @@ npm install
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run fetch-metadata` - Fetch package data from the npm registry
-- `npm run compute-compatibility` - Generate compatibility matrix
-- `npm run generate-data` - Run both data generation steps
+- `npm run generate-data` - Alias of `fetch-metadata`
 - `npm test` - Run the Vitest test suite
 - `npm run lint` - Lint with ESLint
 
@@ -74,7 +68,7 @@ npm install
 The site automatically deploys to GitHub Pages via GitHub Actions:
 
 - **Trigger**: Push to `main`, daily at midnight UTC, or manual dispatch
-- **Build**: Fetches fresh package data, computes compatibility, builds SPA, then copies `dist/index.html` to `dist/404.html` so GitHub Pages serves the app for deep links
+- **Build**: Fetches fresh package data, builds SPA, then copies `dist/index.html` to `dist/404.html` so GitHub Pages serves the app for deep links
 - **Deploy**: Uploads `./dist` as a Pages artifact via `actions/upload-pages-artifact` + `actions/deploy-pages` — no `gh-pages` branch
 
 ### GitHub Actions Workflow
@@ -96,32 +90,9 @@ interface Package {
 }
 ```
 
-### Compatibility Check
-
-```typescript
-interface CompatibilityCheck {
-  packages: string[]; // package@version pairs
-  compatible: boolean;
-  conflicts: Conflict[];
-  sharedGeostylerStyleVersions: string[];
-  recommendations?: string[];
-}
-```
-
 ## 🧩 Compatibility Rules
 
-1. **geostyler-style Range Intersection**
-   - Primary compatibility check
-   - All parsers depend on `geostyler-style`
-   - Packages are compatible if their geostyler-style ranges overlap
-
-2. **ESM/CJS Compatibility**
-   - Mixed ESM and CJS packages may cause bundling issues
-   - Flagged as warning (not error)
-
-3. **Peer Dependencies**
-   - Checks if peer dependency requirements are satisfied
-   - Example: `geostyler-openlayers-parser` requires `ol: ">=7.4"`
+A pair of versions is evaluated on three axes (core range, declared dependency, shared peer) into one of seven verdicts: Conflict, Risk, Duplicate, Compatible, Shipped together, Independent, Unknown. Definitions live in [CONTEXT.md](CONTEXT.md) and [ADR-0004](docs/adr/0004-three-axis-verdict-model.md).
 
 ## 📦 Monitored Packages
 
@@ -129,7 +100,7 @@ See [src/constants/repos.ts](src/constants/repos.ts) for the full list:
 
 - **Core**: geostyler-style, geostyler-data
 - **UI**: geostyler, geostyler-legend
-- **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX, CQL
+- **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX
 - **Data Parsers**: GeoJSON, WFS, Shapefile
 
 ## 🛠️ Tech Stack
