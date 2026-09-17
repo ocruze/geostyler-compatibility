@@ -88,24 +88,6 @@
 
 /* --- Utilities -------------------------------------------------------- */
 
-.centered-spin {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
-/* Fixed-width selects become fluid on small screens (mobile overflow fix). */
-.filter-select {
-  min-width: 150px;
-  max-width: 100%;
-}
-
-/* Links nested in colored tags inherit the tag's color for contrast. */
-.tag-link {
-  color: inherit;
-}
-
 /* Compact code labels in matrix column headers. */
 .cell-code {
   font-size: 12px;
@@ -118,11 +100,6 @@
 @media (max-width: 575px) {
   .package-select {
     min-width: 0;
-    width: 100%;
-  }
-
-  .filter-row,
-  .package-select-row {
     width: 100%;
   }
 }

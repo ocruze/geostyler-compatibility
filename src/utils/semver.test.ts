@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { satisfies, intersectRanges, rangesOverlap, compareVersions, formatRangeForDisplay } from '@/utils/semver';
+import { satisfies, intersectRanges, compareVersions, formatRangeForDisplay } from '@/utils/semver';
 
 describe('test harness', () => {
   it('runs', () => {
@@ -35,15 +35,6 @@ describe('intersectRanges', () => {
 
   it('returns null for all-invalid input', () => {
     expect(intersectRanges(['not-a-range', ''])).toBeNull();
-  });
-});
-
-describe('rangesOverlap', () => {
-  it('true when ranges share versions', () => {
-    expect(rangesOverlap('^1.0.0', '~1.2.0')).toBe(true);
-  });
-  it('false when disjoint', () => {
-    expect(rangesOverlap('^11.0.0', '^12.0.0')).toBe(false);
   });
 });
 

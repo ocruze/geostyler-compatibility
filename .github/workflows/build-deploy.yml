@@ -45,9 +45,6 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: npm run fetch-metadata
 
-            - name: Compute compatibility matrix
-              run: npm run compute-compatibility
-
             - name: Build site
               run: npm run build
 

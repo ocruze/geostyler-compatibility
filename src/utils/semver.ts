@@ -22,10 +22,6 @@ export function intersectRanges(ranges: string[]): string | null {
   return normalized;
 }
 
-export function rangesOverlap(range1: string, range2: string): boolean {
-  return intersectRanges([range1, range2]) !== null;
-}
-
 /**
  * Make a normalized semver range readable for display.
  * `semver.validRange` output carries artifacts users shouldn't have to parse:
@@ -53,16 +49,6 @@ export function formatRangeForDisplay(range: string): string {
 }
 
 /**
- * Get the latest version from a list of versions
- */
-export function getLatestVersion(versions: string[]): string | null {
-  const validVersions = versions.filter(v => semver.valid(v));
-  if (validVersions.length === 0) return null;
-  
-  return validVersions.sort((a, b) => semver.rcompare(a, b))[0];
-}
-
-/**
  * Check if a version satisfies a range
  */
 export function satisfies(version: string, range: string): boolean {
@@ -79,16 +65,4 @@ export function satisfies(version: string, range: string): boolean {
  */
 export function compareVersions(v1: string, v2: string): number {
   return semver.compare(v1, v2);
-}
-
-/**
- * Check if version is a prerelease
- */
-export function isPrerelease(version: string): boolean {
-  try {
-    const parsed = semver.parse(version);
-    return parsed ? parsed.prerelease.length > 0 : false;
-  } catch {
-    return false;
-  }
 }

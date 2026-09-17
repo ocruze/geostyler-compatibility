@@ -6,7 +6,7 @@ Read `AGENTS.md` at the repository root and follow it. It is the single source o
 
 Prioritize correctness, regressions and security over style preferences. Style is already enforced by ESLint (`npm run lint`, zero warnings allowed).
 
-Compatibility logic must match `CONTEXT.md`, `docs/adr/0004-three-axis-verdict-model.md` and `docs/adr/0005-single-runtime-engine.md`. Flag code that widens the current two-engine design instead of moving toward those ADRs.
+Compatibility logic must match `CONTEXT.md`, `docs/adr/0004-three-axis-verdict-model.md` and `docs/adr/0005-single-runtime-engine.md`. `src/engine/` is the only place verdicts and version sets are computed; flag code that computes one elsewhere or at build time.
 
 ## Do not flag
 

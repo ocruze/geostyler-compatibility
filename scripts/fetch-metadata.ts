@@ -1,9 +1,6 @@
 #!/usr/bin/env tsx
 
-/**
- * Fetches package metadata from the npm registry (serial, rate-limited).
- * Generates src/data/packages.json
- */
+// Fetches npm registry metadata for the tracked packages and writes the trimmed dataset the engine reads (ADR-0005).
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -102,11 +99,7 @@ function extractFormat(packageName: string): string | undefined {
   return undefined;
 }
 
-/**
- * Detect ESM support from the version's package.json metadata.
- * Prefers ground truth over version-number guessing.
- */
-export function detectEsmSupport(versionData: Record<string, unknown>): boolean {
+function hasEsmEntry(versionData: Record<string, unknown>): boolean {
   if (versionData?.type === 'module') return true;
   if (versionData?.module) return true;
   const exp = versionData?.exports;
@@ -129,7 +122,7 @@ export function detectModuleSystem(versionData: Record<string, unknown>): Module
   const hasOtherJsEntry = Boolean(versionData.module || versionData.exports || versionData.browser);
   const hasDeclarationEntry = isDeclarationFile(versionData.main) || isDeclarationFile(versionData.types);
   if (hasDeclarationEntry && !hasJsMain && !hasOtherJsEntry) return 'types-only';
-  return detectEsmSupport(versionData) ? 'esm' : 'cjs';
+  return hasEsmEntry(versionData) ? 'esm' : 'cjs';
 }
 
 function extractDeclaredDependencies(dependencies: Record<string, string> = {}): Record<string, string> {
@@ -151,12 +144,8 @@ function extractCoreRanges(versionData: NpmVersionData): CoreRanges {
   });
 }
 
-/**
- * Minimal shape of a single version entry within the npm registry package
- * metadata response. Only documents the fields actually read below —
- * detectEsmSupport takes the broader Record<string, unknown> shape since it
- * probes fields (type/module/exports) not otherwise needed here.
- */
+// The fields of a registry version entry read by name; module detection probes the rest by key.
+
 interface NpmVersionData extends Record<string, unknown> {
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
@@ -193,25 +182,16 @@ export function processNpmData(npmData: NpmRegistryPackage, npmPackageName: stri
     // Skip invalid versions
     if (!semver.valid(versionTag)) continue;
 
-    const coreRanges = extractCoreRanges(versionData);
-    const styleRange = coreRanges['geostyler-style'];
-
     const packageVersion: PackageVersion = {
       name: npmPackageName,
       version: versionTag,
       category,
-      dependencies: versionData.dependencies || {},
       peerDependencies: versionData.peerDependencies || {},
-      coreRanges,
+      coreRanges: extractCoreRanges(versionData),
       declaredDependencies: extractDeclaredDependencies(versionData.dependencies),
       moduleSystem: detectModuleSystem(versionData),
-      geostylerStyleRange: styleRange.source === 'declared' ? styleRange.range : undefined,
-      esmSupport: detectEsmSupport(versionData),
       publishDate: npmData.time?.[versionTag] ?? '',
       isPrerelease: semver.prerelease(versionTag) !== null,
-      repositoryUrl: `https://github.com/${repoName}`,
-      changelogUrl: `https://github.com/${repoName}/blob/main/CHANGELOG.md`,
-      npmUrl: `https://www.npmjs.com/package/${npmPackageName}/v/${versionTag}`,
     };
     
     versions.push(packageVersion);
