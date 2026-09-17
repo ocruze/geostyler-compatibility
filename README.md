@@ -1,122 +1,80 @@
-# GeoStyler Compatibility Dashboard
+# GeoStyler Compatibility
 
-A web interface for checking compatibility between GeoStyler packages — style parsers, data parsers, and UI components.
+A dashboard that answers one question: you use some GeoStyler packages, which versions do you install together?
 
-## 🎯 Features
+Live site: https://ocruze.github.io/geostyler-compatibility/
 
-- **Stack builder**: tick the packages you use, get a version set, an `npm install` line and the bottleneck
-- **Package page**: version history with core ranges and the pair matrix against any other tracked package
-- **Format Support**: Track which parsers support which style/data formats
+## Pages
 
-## 🏗️ Architecture
+- **Check compatibility** (`/`): the stack builder. Tick the packages you use, pin a version where you must, and get a version set, one `npm install` line and a sentence naming the bottleneck. The stack and pins live in the URL (`?stack=a,b&pin=a@1.2.3`), so a link shares the same answer. With nothing ticked, the page shows the latest releases grid: every tracked package's latest release against every other.
+- **Package page** (`/package/<name>`): category, format and module system, the version history with each core range and its source, and the pair matrix against another tracked package (newest 20 stable versions each side, expandable). "Add to stack" returns to the stack builder.
+- **Docs** (`/docs`): the three axes and seven verdicts in plain language. Every example is computed from the dataset at render time.
 
-### Data Generation (Build Time)
+Prereleases are hidden everywhere by default. The "Show prereleases" switch in the header is a browser preference, not URL state.
 
-1. **Fetch Metadata** ([scripts/fetch-metadata.ts](scripts/fetch-metadata.ts))
-   - Pulls package data from the npm registry and trims it to what the engine reads
-   - Resolves transitive core ranges, the one build-time computation
-   - Outputs: `src/data/packages.json` (`{ generatedAt, packages }`; the app footer shows `generatedAt` as a UTC date)
+## How verdicts are computed
 
-Every verdict and version set is computed in the browser by `src/engine/` (see `docs/adr/0005-single-runtime-engine.md`).
+A pair of package versions is compared on three axes: the core ranges both declare on `geostyler-style` and `geostyler-data`, a declared dependency of one on the other, and any external peer both list (`ol`, `react`, `d3`). The aggregate is one of seven verdicts: Conflict, Risk, Duplicate, Shipped together, Compatible, Independent, Unknown. Only a shared peer Conflict breaks `npm install`.
 
-### Frontend (Runtime)
+One engine in `src/engine/` computes every verdict, version set, grid and matrix in the browser. The build step computes no verdict. Definitions live in [CONTEXT.md](CONTEXT.md), the reasoning in [ADR-0004](docs/adr/0004-three-axis-verdict-model.md) and [ADR-0005](docs/adr/0005-single-runtime-engine.md).
 
-- **React SPA** with Vite
-- **TanStack Router** for type-safe routing
-- No runtime data fetching — static JSON (generated at build time) is imported directly; `usePackages` in `src/api/queries.ts` is a synchronous wrapper, not TanStack Query
+## Data
 
-## 🚀 Getting Started
+`scripts/fetch-metadata.ts` reads the npm registry for the tracked packages and writes `src/data/packages.json` (`{ generatedAt, packages }`). It reads nothing else: no GitHub API. Per version it keeps the version, publish date, prerelease flag, module system (`esm`, `cjs` or `types-only`), core ranges with their source (`declared`, `transitive` with its origin, or `none`), declared dependencies on tracked packages, and peer dependencies. Resolving transitive core ranges is the only computation at build time.
 
-### Prerequisites
+`src/data/` is generated and gitignored. Run `npm run fetch-metadata` before `dev` or `build`.
 
-- Node.js 24 (pinned via `.nvmrc`, currently `24.14.0`)
-- npm/yarn/pnpm
+## Tracked packages
 
-### Installation
-
-```bash
-npm install
-```
-
-### Local Development
-
-1. Generate data:
-   ```bash
-   npm run fetch-metadata
-   ```
-
-2. Start dev server:
-   ```bash
-   npm run dev
-   ```
-
-3. Open http://localhost:5173
-
-### Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run fetch-metadata` - Fetch package data from the npm registry
-- `npm test` - Run the Vitest test suite
-- `npm run lint` - Lint with ESLint
-
-## 🔄 Deployment
-
-The site automatically deploys to GitHub Pages via GitHub Actions:
-
-- **Trigger**: Push to `main`, daily at midnight UTC, or manual dispatch
-- **Build**: Fetches fresh package data, builds SPA, then copies `dist/index.html` to `dist/404.html` so GitHub Pages serves the app for deep links
-- **Deploy**: Uploads `./dist` as a Pages artifact via `actions/upload-pages-artifact` + `actions/deploy-pages` — no `gh-pages` branch
-
-### GitHub Actions Workflow
-
-See [.github/workflows/build-deploy.yml](.github/workflows/build-deploy.yml)
-
-## 📊 Data Model
-
-### Package Structure
-
-```typescript
-interface Package {
-  name: string;
-   category: 'core' | 'ui' | 'style-parser' | 'data-parser';
-  format?: string; // e.g., 'SLD', 'Mapbox GL v8'
-  versions: PackageVersion[];
-  latestVersion: string;
-  repositoryUrl: string;
-}
-```
-
-## 🧩 Compatibility Rules
-
-A pair of versions is evaluated on three axes (core range, declared dependency, shared peer) into one of seven verdicts: Conflict, Risk, Duplicate, Compatible, Shipped together, Independent, Unknown. Definitions live in [CONTEXT.md](CONTEXT.md) and [ADR-0004](docs/adr/0004-three-axis-verdict-model.md).
-
-## 📦 Monitored Packages
-
-See [src/constants/repos.ts](src/constants/repos.ts) for the full list:
+The list is fixed in [src/constants/repos.ts](src/constants/repos.ts):
 
 - **Core**: geostyler-style, geostyler-data
 - **UI**: geostyler, geostyler-legend
-- **Style Parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX
-- **Data Parsers**: GeoJSON, WFS, Shapefile
+- **Style parsers**: SLD, Mapbox, QGIS, OpenLayers, LYRX
+- **Data parsers**: GeoJSON, WFS, Shapefile
 
-## 🛠️ Tech Stack
+`geostyler-cql-parser` is not tracked: users do not install it directly.
 
-- **Build**: Vite, TypeScript
-- **Frontend**: React 18, TanStack Router, Ant Design v6
-- **Data Processing**: Node.js, npm registry API
-- **Deployment**: GitHub Actions, GitHub Pages
+## Development
 
-## 📝 License
+Node 24 (pinned in `.nvmrc`).
+
+```bash
+npm install
+npm run fetch-metadata   # writes src/data/packages.json
+npm run dev              # http://localhost:5173/geostyler-compatibility/
+```
+
+Scripts:
+
+- `npm run build`: `tsc` then `vite build`
+- `npm run preview`: serve the built site
+- `npm test`: Vitest, one run (`npm run test:watch` to watch)
+- `npm run lint`: ESLint
+
+Tests cover the engine against real registry records frozen in `src/engine/__fixtures__/versions.json`, the pipeline transform against recorded registry responses, and the semver and URL helpers. Routes call only the engine, so there are no component tests.
+
+## Deployment
+
+[.github/workflows/build-deploy.yml](.github/workflows/build-deploy.yml) runs on every push to `main`, daily at midnight UTC, and on manual dispatch:
+
+1. `npm ci`
+2. `npm run fetch-metadata`
+3. `npm run build`
+4. `cp dist/index.html dist/404.html`, so GitHub Pages serves the app for deep links
+5. Upload `dist/` as a Pages artifact and deploy it
+
+The Vite base path is `/geostyler-compatibility/`; the router reads it from `import.meta.env.BASE_URL`.
+
+## Stack
+
+React 18, TypeScript, Vite 7, Ant Design v6, TanStack Router (file-based routes in `src/routes/`), `semver`.
+
+## License
 
 MIT
 
-## 🤝 Contributing
+## Links
 
-Contributions welcome! Please open an issue or PR.
-
-## 🔗 Links
-
-- [GeoStyler Organization](https://github.com/geostyler)
-- [GeoStyler Documentation](https://geostyler.github.io/geostyler/)
+- [GeoStyler organisation](https://github.com/geostyler)
+- [GeoStyler documentation](https://geostyler.github.io/geostyler/)
